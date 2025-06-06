@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "408037924073",
+    "project_id": "play-lume",
+    "storage_bucket": "play-lume.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:408037924073:android:1de08b7243b0651c07e478",
+        "android_client_info": {
+          "package_name": "com.example.play_lumee"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJjB2luh3zMH1NTHYs4K6vyXnEm_NrwPk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
