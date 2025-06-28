@@ -24,29 +24,24 @@ class FirebaseService {
 
   // Add this method to fix the missing nextRoundOrEndGame error for Sync Game
   Future<void> nextRoundOrEndGame(String roomCode) async {
-    final roomRef = _firestore.collection('rooms').doc(roomCode);
-    await _firestore.runTransaction((transaction) async {
-      final roomSnapshot = await transaction.get(roomRef);
-      if (!roomSnapshot.exists) throw Exception("Room does not exist!");
+  final roomRef = _firestore.collection('rooms').doc(roomCode);
+  await _firestore.runTransaction((transaction) async {
+    final roomSnapshot = await transaction.get(roomRef);
+    if (!roomSnapshot.exists) throw Exception("Room does not exist!");
 
-      int currentRound = roomSnapshot.data()?['currentRound'] ?? 1;
-      int maxRounds = roomSnapshot.data()?['totalRounds'] ?? 3;
-      String gameId = roomSnapshot.data()?['gameId'] ?? ''; // Get gameId to call nextRound correctly
+    int currentRound = roomSnapshot.data()?['currentRound'] ?? 1;
+    int maxRounds = roomSnapshot.data()?['totalRounds'] ?? 3;
+    String gameId = roomSnapshot.data()?['gameId'] ?? '';
 
-      if (currentRound < maxRounds) {
-        // Start next round
-        // For Sync, we need to assign a new question
-        // For Guess the Liar, we need to assign new roles/questions
-        // For Don't Get Me Started, we need to assign new ranting player
-        await nextRound(roomCode, gameId); // Call the specific nextRound logic
-      } else {
-        // End game
-        await transaction.update(roomRef, {
-          'gamePhase': 'gameOver',
-        });
-      }
-    });
-  }
+    // Only start next round if currentRound < maxRounds
+    if (currentRound < maxRounds) {
+      await nextRound(roomCode, gameId); // This increments currentRound
+    } else {
+      // End game only if all rounds are complete
+      await transaction.update(roomRef, {'gamePhase': 'gameOver'});
+    }
+  });
+}
 
   // Add this method to fix the missing endRound error for Sync Game
   Future<void> endRound(String roomCode) async {
@@ -988,7 +983,7 @@ class FirebaseService {
         DocumentSnapshot roomSnap = await transaction.get(roomRef);
         if (!roomSnap.exists) throw Exception("Room does not exist!");
 
-        List<dynamic> players = List<dynamic>.from(roomSnap.get('players') ?? []);
+        List<dynamic> players = List.from(roomSnap.get('players') ?? []);
         Map<String, dynamic>? ranter = players.firstWhereOrNull((p) => p['userId'] == playerId);
 
         if (ranter != null && ranter['isRantingPlayer'] == true) {
@@ -1267,16 +1262,26 @@ class FirebaseService {
 
   // Helper function to normalize answers for comparison
   String _normalizeAnswer(String answer) {
-    // Convert to lowercase and remove all non-alphanumeric characters (including spaces)
-    String normalized = answer.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    // Convert to lowercase
+    String normalized = answer.toLowerCase();
+
+    // Remove all non-alphanumeric characters (keeps spaces for now, will handle later)
+    normalized = normalized.replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), ''); // Keeps letters, numbers, spaces
+
+    // Normalize multiple spaces to a single space, then trim
+    normalized = normalized.replaceAll(RegExp(r'\s+'), ' ').trim();
 
     // Basic plural 's' removal, be careful not to remove 's' from words like 'chess'
+    // This logic operates on the whole string, which is fine if we've removed extra spaces
     if (normalized.endsWith('es')) {
       normalized = normalized.substring(0, normalized.length - 2);
     } else if (normalized.endsWith('s') && normalized.length > 1 && !normalized.endsWith('ss')) {
-      // Check for plural 's' only if it's not a double 's' at the end
       normalized = normalized.substring(0, normalized.length - 1);
     }
+    
+    // Remove all spaces for final comparison (as per previous behavior for "red apple" vs "redapple")
+    normalized = normalized.replaceAll(' ', '');
+
     return normalized;
   }
 
@@ -1610,7 +1615,7 @@ class PlayLumeApp extends StatelessWidget {
       title: 'Play Lume',
       theme: ThemeData(
         primarySwatch: Colors.deepPurple,
-        // Removed explicit font family to use system default
+        // Removed explicit font family to use system default, which handles Chinese symbols better.
         // fontFamily: 'Arial', 
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF121212),
@@ -3768,36 +3773,21 @@ class _SyncGameScreenState extends State<SyncGameScreen> {
     List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
     bool isHost = roomData['hostId'] == firebaseService.getCurrentUserId();
 
-    // Group answers for display
+    // Group answers using the normalized form as the key
     Map<String, List<Map<String, dynamic>>> groupedAnswers = {};
+    Map<String, String> normalizedToRepresentativeOriginal = {}; // To pick one original for display
+
     for (var p in players) {
       final player = Map<String, dynamic>.from(p);
       String? answer = player['answerSync'] as String?;
       if (answer != null && answer.isNotEmpty) {
-        // Use the original answer for display key, but still group by normalized for logic
         String normalizedAnswer = firebaseService._normalizeAnswer(answer);
-        
-        // Find if this normalized answer already exists as a display key
-        String displayKey = answer; // Default to original answer
-        bool foundExistingGroup = false;
-        for (var existingAnswerKey in groupedAnswers.keys) {
-          if (firebaseService._normalizeAnswer(existingAnswerKey) == normalizedAnswer) {
-            displayKey = existingAnswerKey; // Use the existing key if normalization matches
-            foundExistingGroup = true;
-            break;
-          }
-        }
-        if (!foundExistingGroup && groupedAnswers.isEmpty) { // If it's the very first answer
-           displayKey = answer;
-        } else if (!foundExistingGroup && groupedAnswers.isNotEmpty) { // If it's a new normalized answer not seen yet
-           displayKey = answer;
-        }
 
-
-        if (!groupedAnswers.containsKey(displayKey)) {
-          groupedAnswers[displayKey] = [];
+        if (!groupedAnswers.containsKey(normalizedAnswer)) {
+          groupedAnswers[normalizedAnswer] = [];
+          normalizedToRepresentativeOriginal[normalizedAnswer] = answer; // Store this original as the representative
         }
-        groupedAnswers[displayKey]!.add(player);
+        groupedAnswers[normalizedAnswer]!.add(player);
       }
     }
 
@@ -3818,7 +3808,8 @@ class _SyncGameScreenState extends State<SyncGameScreen> {
             itemCount: sortedGroups.length,
             itemBuilder: (context, index) {
               final entry = sortedGroups[index];
-              final answer = entry.key; // This is the chosen display key (original answer from first match)
+              final normalizedAnswerKey = entry.key; // This is the normalized answer used for grouping
+              final displayAnswer = normalizedToRepresentativeOriginal[normalizedAnswerKey] ?? normalizedAnswerKey; // Use representative original if exists, else normalized
               final playersInGroup = entry.value;
               bool isMatchedGroup = playersInGroup.length > 1;
 
@@ -3831,7 +3822,7 @@ class _SyncGameScreenState extends State<SyncGameScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '"$answer"',
+                        '"$displayAnswer"', // Display the representative original answer
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: isMatchedGroup ? Colors.lightBlueAccent : Colors.white,
                           fontWeight: FontWeight.bold,
@@ -3872,18 +3863,22 @@ class _SyncGameScreenState extends State<SyncGameScreen> {
         ),
         const SizedBox(height: 20),
         if (isHost)
-          ElevatedButton(
-            onPressed: _isLoading ? null : () => _nextRoundOrEndGame(),
-            child: _isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text('Continue to Scores'),
-          )
-        else
-          Text(
-            'Waiting for host to continue...',
-            style: Theme.of(context).textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
+  ElevatedButton(
+    onPressed: _isLoading ? null : () async {
+      setState(() => _isLoading = true);
+      await firebaseService.nextPhase(widget.roomCode, 'roundResults');
+      setState(() => _isLoading = false);
+    },
+    child: _isLoading
+        ? const CircularProgressIndicator(color: Colors.white)
+        : const Text('Continue to Scores'),
+  )
+else
+  Text(
+    'Waiting for host to continue...',
+    style: Theme.of(context).textTheme.titleMedium,
+    textAlign: TextAlign.center,
+  ),
       ],
     );
   }
@@ -3896,6 +3891,10 @@ class _SyncGameScreenState extends State<SyncGameScreen> {
 
     // Sort players by total score descending
     players.sort((a, b) => (b['score'] ?? 0).compareTo(a['score'] ?? 0));
+
+    // Debug prints to confirm round values
+    print("SyncGameScreen: _buildRoundResultsSyncUI: currentRound=$currentRound, totalRounds=$totalRounds");
+
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
