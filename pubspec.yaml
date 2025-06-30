@@ -41,10 +41,12 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutterfire_cli: ^1.2.0
   uuid: ^4.5.1
+  flutter_svg: ^2.2.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+    
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -52,9 +54,23 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: "^0.13.1"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
+
+# ... (rest of your pubspec.yaml file)
+
+flutter_launcher_icons:
+  android: "launcher_icon" # Or true for default Android icon generation
+  ios: true                # Or true for default iOS icon generation
+  image_path: "lib/assets/logo1.png" # <--- This is the path to YOUR PNG
+  # Optional: specify a background color for adaptive icons on Android 8.0+
+  # For a transparent icon, you can set adaptive_icon_background to "#FFFFFF" or a matching color.
+  # Or, if your PNG already has a solid background, you can omit this.
+  adaptive_icon_background: "#121212" # Matches your app's dark background color
+  adaptive_icon_foreground: "lib/assets/logo1.png" # The logo itself for adaptive icons
+  min_sdk_android: 21 # Set this to the minimum SDK version your app supports (default 21)
 
 # The following section is specific to Flutter packages.
 flutter:
@@ -63,7 +79,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-
+  assets:
+    - lib/assets/logo1.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

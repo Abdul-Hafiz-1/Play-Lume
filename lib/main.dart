@@ -1800,7 +1800,7 @@ final List<Game> games = [
     id: 'dont_get_me_started',
     name: "Don't Get Me Started",
     description: "One player rants on a topic, others guess key phrases!",
-    imageAsset: 'assets/placeholder_dgms.png',
+    imageAsset: 'lib/assets/DGMS.png',
     isOnline: true,
     selectionLobbyRouteName: '/game_lobby',
     actualGameRouteName: '/play/dont_get_me_started',
