@@ -620,336 +620,336 @@ class FirebaseService {
     "Name something associated with good luck."
     "Name a cartoon character you loved as a kid."
 
-  "Name a game we always ended up playing together."
+    "Name a game we always ended up playing together."
 
-  "Name a food we always have at family dinners."
+    "Name a food we always have at family dinners."
 
-  "Name a song that reminds you of a holiday party."
+    "Name a song that reminds you of a holiday party."
 
-  "Name a video game everyone played at some point."
+    "Name a video game everyone played at some point."
 
-  "Name a classic movie we all watched on repeat."
+    "Name a classic movie we all watched on repeat."
 
-  "Name a place we went on a family vacation."
+    "Name a place we went on a family vacation."
 
-  "Name a chore you always tried to avoid."
+    "Name a chore you always tried to avoid."
 
-  "Name a type of pizza topping."
+    "Name a type of pizza topping."
 
-  "Name a well-known superhero."
+    "Name a well-known superhero."
 
-  "Name a candy bar you would buy at a movie theater."
+    "Name a candy bar you would buy at a movie theater."
 
-  "Name a subject we all struggled with in school."
+    "Name a subject we all struggled with in school."
 
-  "Name a store we would always go to on a trip."
+    "Name a store we would always go to on a trip."
 
-  "Name something you'd find in a kitchen cabinet."
+    "Name something you'd find in a kitchen cabinet."
 
-  "Name a type of soda."
+    "Name a type of soda."
 
-  "Name a piece of playground equipment."
+    "Name a piece of playground equipment."
 
-  "Name a popular social media platform."
+    "Name a popular social media platform."
 
-  "Name a type of ice cream flavor."
+    "Name a type of ice cream flavor."
 
-  "Name a board game that took forever to finish."
+    "Name a board game that took forever to finish."
 
-  "Name a fast food restaurant."
+    "Name a fast food restaurant."
 
-  "Name a holiday tradition our family has."
+    "Name a holiday tradition our family has."
 
-  "Name a TV show we all watched growing up."
+    "Name a TV show we all watched growing up."
 
-  "Name a type of shoe."
+    "Name a type of shoe."
 
-  "Name an animal you'd see at a zoo."
+    "Name an animal you'd see at a zoo."
 
-  "Name a musical instrument."
+    "Name a musical instrument."
 
-  "Name something you do on vacation."
+    "Name something you do on vacation."
 
-  "Name a common household item."
+    "Name a common household item."
 
-  "Name a kind of soup."
+    "Name a kind of soup."
 
-  "Name a mode of transportation."
+    "Name a mode of transportation."
 
-  "Name a subject taught in school."
+    "Name a subject taught in school."
 
-  "Name a type of tree."
+    "Name a type of tree."
 
-  "Name a type of dessert."
+    "Name a type of dessert."
 
-  "Name a kitchen utensil."
+    "Name a kitchen utensil."
 
-  "Name a type of drink."
+    "Name a type of drink."
 
-  "Name a color."
+    "Name a color."
 
-  "Name a type of fruit."
+    "Name a type of fruit."
 
-  "Name a popular sport."
+    "Name a popular sport."
 
-  "Name a famous fictional character."
+    "Name a famous fictional character."
 
-  "Name a type of snack food."
+    "Name a type of snack food."
 
-  "Name a kind of bread."
+    "Name a kind of bread."
 
-  "Name something you can bake."
+    "Name something you can bake."
 
-  "Name a type of dance."
+    "Name a type of dance."
 
-  "Name a famous singer."
+    "Name a famous singer."
 
-  "Name a common house plant."
+    "Name a common house plant."
 
-  "Name a type of cookie."
+    "Name a type of cookie."
 
-  "Name a type of vegetable."
+    "Name a type of vegetable."
 
-  "Name a well-known movie genre."
+    "Name a well-known movie genre."
 
-  "Name a sound an animal makes."
+    "Name a sound an animal makes."
 
-  "Name a type of car."
+    "Name a type of car."
 
-  "Name a famous monument."
+    "Name a famous monument."
 
-  "Name a type of salad dressing."
+    "Name a type of salad dressing."
 
-  "Name a type of nut."
+    "Name a type of nut."
 
-  "Name a body of water."
+    "Name a body of water."
 
-  "Name a type of flower."
+    "Name a type of flower."
 
-  "Name a profession."
+    "Name a profession."
 
-  "Name a type of bird."
+    "Name a type of bird."
 
-  "Name a type of cheese."
+    "Name a type of cheese."
 
-  "Name a primary color."
+    "Name a primary color."
 
-  "Name something associated with good luck."
+    "Name something associated with good luck."
 
-  "Name a piece of technology we can't live without."
+    "Name a piece of technology we can't live without."
 
-  "Name a type of breakfast cereal."
+    "Name a type of breakfast cereal."
 
-  "Name a type of puzzle game."
+    "Name a type of puzzle game."
 
-  "Name something you'd find in a library."
+    "Name something you'd find in a library."
 
-  "Name a type of toy you had as a kid."
+    "Name a type of toy you had as a kid."
 
-  "Name a type of berry."
+    "Name a type of berry."
 
-  "Name a famous actor."
+    "Name a famous actor."
 
-  "Name a kind of sandwich."
+    "Name a kind of sandwich."
 
-  "Name a type of sauce."
+    "Name a type of sauce."
 
-  "Name a type of bean."
+    "Name a type of bean."
 
-  "Name a place you went for dinner in the UAE."
+    "Name a place you went for dinner in the UAE."
 
-  "Name something you'd pack for a camping trip."
+    "Name something you'd pack for a camping trip."
 
-  "Name a type of animal."
+    "Name a type of animal."
 
-  "Name a type of music genre."
+    "Name a type of music genre."
 
-  "Name a famous river."
+    "Name a famous river."
 
-  "Name a type of exercise."
+    "Name a type of exercise."
 
-  "Name a type of building."
+    "Name a type of building."
 
-  "Name a well-known fairy tale."
+    "Name a well-known fairy tale."
 
-  "Name a type of pizza."
+    "Name a type of pizza."
 
-  "Name something you'd find in a refrigerator."
+    "Name something you'd find in a refrigerator."
 
-  "Name a common emotion."
+    "Name a common emotion."
 
-  "Name a type of juice."
+    "Name a type of juice."
 
-  "Name a type of cloud."
+    "Name a type of cloud."
 
-  "Name something you eat for breakfast."
+    "Name something you eat for breakfast."
 
-  "Name a type of hat."
+    "Name a type of hat."
 
-  "Name a character from a Disney movie."
+    "Name a character from a Disney movie."
 
-  "Name something you'd find on a beach."
+    "Name something you'd find on a beach."
 
-  "Name a type of insect."
+    "Name a type of insect."
 
-  "Name a part of the human body."
+    "Name a part of the human body."
 
-  "Name a type of clothing item."
+    "Name a type of clothing item."
 
-  "Name a famous historical figure."
+    "Name a famous historical figure."
 
-  "Name a type of musical."
+    "Name a type of musical."
 
-  "Name a kind of salad."
+    "Name a kind of salad."
 
-  "Name something you use to write with."
+    "Name something you use to write with."
 
-  "Name a type of dog breed."
+    "Name a type of dog breed."
 
-  "Name a type of cat breed."
+    "Name a type of cat breed."
 
-  "Name a type of fish you'd eat."
+    "Name a type of fish you'd eat."
 
-  "Name a piece of furniture."
+    "Name a piece of furniture."
 
-  "Name a type of bird."
+    "Name a type of bird."
 
-  "Name a type of flower."
+    "Name a type of flower."
 
-  "Name a type of soup."
+    "Name a type of soup."
 
-  "Name a popular hobby."
+    "Name a popular hobby."
 
-  "Name a type of tree."
+    "Name a type of tree."
 
-  "Name a type of berry."
+    "Name a type of berry."
 
-  "Name a country in Asia."
+    "Name a country in Asia."
 
-  "Name something you use to cook."
+    "Name something you use to cook."
 
-  "Name a type of game that uses a controller."
+    "Name a type of game that uses a controller."
 
-  "Name a type of dessert."
+    "Name a type of dessert."
 
-  "Name a brand of car."
+    "Name a brand of car."
 
-  "Name a type of pasta."
+    "Name a type of pasta."
 
-  "Name something you can bake."
+    "Name something you can bake."
 
-  "Name a body of water."
+    "Name a body of water."
 
-  "Name a profession."
+    "Name a profession."
 
-  "Name a type of weather."
+    "Name a type of weather."
 
-  "Name a common household item."
+    "Name a common household item."
 
-  "Name a type of book genre."
+    "Name a type of book genre."
 
-  "Name a type of drink."
+    "Name a type of drink."
 
-  "Name a famous cartoon character."
+    "Name a famous cartoon character."
 
-  "Name a type of candy."
+    "Name a type of candy."
 
-  "Name a subject taught in school."
+    "Name a subject taught in school."
 
-  "Name something you'd find in a park."
+    "Name something you'd find in a park."
 
-  "Name a type of cheese."
+    "Name a type of cheese."
 
-  "Name a popular sport."
+    "Name a popular sport."
 
-  "Name a type of bird."
+    "Name a type of bird."
 
-  "Name a board game."
+    "Name a board game."
 
-  "Name a type of puzzle."
+    "Name a type of puzzle."
 
-  "Name a common pet."
+    "Name a common pet."
 
-  "Name a kind of cake."
+    "Name a kind of cake."
 
-  "Name a type of seafood."
+    "Name a type of seafood."
 
-  "Name a type of dance."
+    "Name a type of dance."
 
-  "Name a famous song."
+    "Name a famous song."
 
-  "Name a type of sandwich."
+    "Name a type of sandwich."
 
-  "Name a type of sauce."
+    "Name a type of sauce."
 
-  "Name a type of vegetable."
+    "Name a type of vegetable."
 
-  "Name a place you'd go on vacation."
+    "Name a place you'd go on vacation."
 
-  "Name a type of game that uses dice."
+    "Name a type of game that uses dice."
 
-  "Name a famous athlete."
+    "Name a famous athlete."
 
-  "Name a type of holiday."
+    "Name a type of holiday."
 
-  "Name a type of shoe."
+    "Name a type of shoe."
 
-  "Name a popular snack brand."
+    "Name a popular snack brand."
 
-  "Name a mythological creature."
+    "Name a mythological creature."
 
-  "Name something associated with being a kid."
+    "Name something associated with being a kid."
 
-  "Name a type of nut."
+    "Name a type of nut."
 
-  "Name a famous scientist."
+    "Name a famous scientist."
 
-  "Name a piece of technology."
+    "Name a piece of technology."
 
-  "Name a popular social media app."
+    "Name a popular social media app."
 
-  "Name a type of ice cream."
+    "Name a type of ice cream."
 
-  "Name a type of pasta dish."
+    "Name a type of pasta dish."
 
-  "Name a common household appliance."
+    "Name a common household appliance."
 
-  "Name a piece of furniture you had as a kid."
+    "Name a piece of furniture you had as a kid."
 
-  "Name a type of board game."
+    "Name a type of board game."
 
-  "Name a type of animal you'd see on a farm."
+    "Name a type of animal you'd see on a farm."
 
-  "Name a mode of transportation."
+    "Name a mode of transportation."
 
-  "Name a color."
+    "Name a color."
 
-  "Name a specific memory from a family dinner."
+    "Name a specific memory from a family dinner."
 
-  "Name a song that reminds you of a specific cousin."
+    "Name a song that reminds you of a specific cousin."
 
-  "Name a food we ate that was different from home."
+    "Name a food we ate that was different from home."
 
-  "Name a specific memory from playing a game together."
+    "Name a specific memory from playing a game together."
 
-  "Name a specific inside joke we all share."
+    "Name a specific inside joke we all share."
 
-  "Name a type of game we played when the power went out."
+    "Name a type of game we played when the power went out."
 
-  "Name a character from a game we all know."
+    "Name a character from a game we all know."
 
-  "Name a type of game that involves drawing."
+    "Name a type of game that involves drawing."
 
-  "Name a type of game that involves music."
+    "Name a type of game that involves music."
 
-  "Name a memory from one of our favorite games."
+    "Name a memory from one of our favorite games."
 
-  "Name a kind of sandwich."
+    "Name a kind of sandwich."
 
-  "Name a common household item."
+    "Name a common household item."
 
-  "Name a place you'd find in your neighborhood."
-  "Most memorable family time (Happy Home)"
+    "Name a place you'd find in your neighborhood."
+    "Most memorable family time (Happy Home)"
   ];
 
 
