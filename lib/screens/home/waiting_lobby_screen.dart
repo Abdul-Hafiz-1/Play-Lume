@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:ui';
+import '../../services/firebase_service.dart' hide snackbarKey;
+import '../../main.dart';
 
-// Import your centralized services and models
-import '../../services/firebase_service.dart';
-import '../../models/game_model.dart';
-
-class WaitingLobbyScreen extends StatelessWidget {
+class WaitingLobbyScreen extends StatefulWidget {
   final String roomCode;
   final String gameId;
   final bool isHost;
@@ -18,203 +18,353 @@ class WaitingLobbyScreen extends StatelessWidget {
   });
 
   @override
+  State<WaitingLobbyScreen> createState() => _WaitingLobbyScreenState();
+}
+
+class _WaitingLobbyScreenState extends State<WaitingLobbyScreen> {
+  bool _hasExited = false;
+
+  // --- 1. THE AUTO-NAVIGATOR ---
+  void _handleNavigation(Map<String, dynamic> data) {
+    // STOPS THE LOOP: If we already started exiting, stop everything
+    if (_hasExited || !mounted) return;
+
+    final String status = data['status'] ?? 'waiting';
+    final String gamePhase = data['gamePhase'] ?? '';
+    final List<dynamic> players = data['players'] ?? [];
+
+    // Check if I was kicked
+    bool iAmStillInRoom = players.any((p) => p['userId'] == firebaseService.userId);
+
+    if (!iAmStillInRoom) {
+      _hasExited = true; 
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          snackbarKey.currentState?.showSnackBar(
+            const SnackBar(content: Text("You were removed from the room.")),
+          );
+        }
+      });
+      return;
+    }
+
+    // Check if Game Started
+    if (status == 'playing' && gamePhase.isNotEmpty) {
+      // CRITICAL: Set this to true BEFORE the Navigator call to stop the loop
+      _hasExited = true; 
+      
+      print("NAVIGATOR: Launching /play/${widget.gameId}...");
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          // Use pushNamedAndRemoveUntil to clear lobby from stack but keep Home
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/play/${widget.gameId}',
+            (route) => route.settings.name == '/home',
+            arguments: {'roomCode': widget.roomCode, 'gameId': widget.gameId},
+          );
+        }
+      });
+    }
+  }
+
+  // --- 2. THE KICK DIALOG ---
+  void _showKickConfirmation(String targetUserId, String nickname) {
+    showDialog(
+      context: context,
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: AlertDialog(
+          backgroundColor: const Color(0xFF0E1329),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Text("KICK $nickname?", 
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: const Text("They will be disconnected from the neural link.", 
+            style: TextStyle(color: Colors.white60)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context), 
+              child: const Text("CANCEL")
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              onPressed: () {
+                Navigator.pop(context);
+                firebaseService.kickPlayer(widget.roomCode, targetUserId);
+                HapticFeedback.vibrate();
+              },
+              child: const Text("KICK PLAYER"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Game Lobby'),
-        centerTitle: true,
-        automaticallyImplyLeading: false, // Prevent back button 
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: firebaseService.getRoomStream(roomCode),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            print("WaitingLobby Stream Error: ${snapshot.error}");
-            return Center(child: Text('Error loading room data: ${snapshot.error}'));
-          }
-          if (snapshot.data == null || !snapshot.data!.exists) {
-            Future.delayed(const Duration(seconds: 3), () {
-              if (ModalRoute.of(context)?.isCurrent == true) {
-                Navigator.popUntil(context, ModalRoute.withName('/home'));
-              }
-            });
-            return const Center(child: Text('Room not found. Returning to home...'));
-          }
+      backgroundColor: const Color(0xFF04060E),
+      body: Stack(
+        children: [
+          // Ambient Glows
+          Positioned(top: -100, left: -50, child: _glowOrb(300, Colors.blue.withOpacity(0.15))),
+          Positioned(bottom: -100, right: -50, child: _glowOrb(300, Colors.purple.withOpacity(0.1))),
 
-          Map<String, dynamic> roomData = snapshot.data!.data() as Map<String, dynamic>;
-          List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
-          String gameStatus = roomData['status'] ?? 'waiting';
-
-          final currentGame = games.firstWhere((g) => g.id == gameId, orElse: () => games.first);
-
-          // Fix: Logic for navigating to game screen
-          if (gameStatus == 'playing') {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (ModalRoute.of(context)?.isCurrent == true) {
-                Navigator.pushReplacementNamed(
-                  context,
-                  currentGame.actualGameRouteName,
-                  arguments: {'roomCode': roomCode, 'gameId': gameId},
-                );
-              }
-            });
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: Theme.of(context).colorScheme.secondary),
-                  const SizedBox(height: 20),
-                  const Text("Starting game...", style: TextStyle(fontSize: 18, color: Colors.white)),
-                ],
-              ),
-            );
-          }
-
-          return Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Sculpted Info Card
-                Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  color: Theme.of(context).colorScheme.surface,
-                  child: Container(
-                    padding: const EdgeInsets.all(24.0),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: LinearGradient(colors: [Color(0xFF231454), Color(0xFF130A24)], begin: Alignment.topLeft, end: Alignment.bottomRight) // Card gradient
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          currentGame.name, 
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.secondary,
-                            fontWeight: FontWeight.bold
-                          )
-                        ),
-                        const SizedBox(height: 16),
-                        const Text('ROOM CODE', style: TextStyle(color: Colors.white54, letterSpacing: 1.2)),
-                        const SizedBox(height: 4),
-                        SelectableText(
-                          roomCode, 
-                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 4.0
-                          )
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isHost ? Colors.amber.withOpacity(0.2) : Colors.white10,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            isHost ? 'You are the Host' : 'You are a Player (${firebaseService.nickname})', 
-                            style: TextStyle(
-                              color: isHost ? Colors.amberAccent : Colors.white70,
-                              fontWeight: FontWeight.bold
-                            )
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 30),
+          SafeArea(
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: firebaseService.getRoomStream(widget.roomCode.trim()),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.white)));
                 
-                // Players List with Dimensionality
-                Text(
-                  'Players Joined (${players.length})', 
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
+                if (!snapshot.hasData || !snapshot.data!.exists) {
+                  return const Center(child: CircularProgressIndicator(color: Colors.blue));
+                }
+
+                final data = snapshot.data!.data() as Map<String, dynamic>;
+                
+                // Debug log status
+                print("LOBBY_WATCHER: Status=${data['status']}, Phase=${data['gamePhase']}");
+
+                // Trigger navigation check
+                _handleNavigation(data); 
+
+                final players = data['players'] as List<dynamic>;
+
+                return Column(
+                  children: [
+                    _buildHeader(),
+                    _buildRoomCodeDisplay(),
+                    
+                    const SizedBox(height: 40),
+                    const Text(
+                      "SYNCHRONIZING PLAYERS...",
+                      style: TextStyle(
+                        color: Colors.white24, 
+                        fontSize: 10, 
+                        letterSpacing: 3, 
+                        fontWeight: FontWeight.bold
+                      ),
+                    ),
+
+                    Expanded(
+                      child: GridView.builder(
+                        padding: const EdgeInsets.all(24),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 1.1,
+                        ),
+                        itemCount: players.length,
+                        itemBuilder: (context, index) {
+                          final player = players[index] as Map<String, dynamic>;
+                          return _buildPlayerCard(player);
+                        },
+                      ),
+                    ),
+
+                    _buildActionArea(players.length),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- UI COMPONENTS ---
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          Text(
+            widget.gameId.replaceAll('_', ' ').toUpperCase(),
+            style: const TextStyle(
+              color: Colors.white, 
+              fontWeight: FontWeight.bold, 
+              fontSize: 18, 
+              letterSpacing: 2
+            ),
+          ),
+          const Icon(Icons.wifi_tethering, color: Colors.blueAccent, size: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoomCodeDisplay() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.03),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            children: [
+              const Text("INVITE CODE", 
+                style: TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 2)),
+              const SizedBox(height: 5),
+              Text(
+                widget.roomCode,
+                style: const TextStyle(
+                  color: Colors.white, 
+                  fontSize: 38, 
+                  fontWeight: FontWeight.w900, 
+                  letterSpacing: 8
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayerCard(Map<String, dynamic> player) {
+    bool isPlayerHost = player['isHost'] ?? false;
+    
+    return GestureDetector(
+      onLongPress: () {
+        if (widget.isHost && !isPlayerHost) {
+          HapticFeedback.heavyImpact();
+          _showKickConfirmation(player['userId'], player['nickname']);
+        }
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isPlayerHost ? Colors.blue.withOpacity(0.15) : Colors.white.withOpacity(0.03),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: isPlayerHost ? Colors.blue.withOpacity(0.4) : Colors.white.withOpacity(0.08),
+                width: 1.5,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (isPlayerHost)
+                   const Padding(
+                     padding: EdgeInsets.only(bottom: 8.0),
+                     child: Icon(Icons.stars, color: Colors.blue, size: 16),
+                   ),
+                CircleAvatar(
+                  radius: 25,
+                  backgroundColor: isPlayerHost ? Colors.blue : Colors.white10,
+                  child: Text(
+                    player['nickname'][0].toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: players.length,
-                    itemBuilder: (context, index) {
-                      var player = players[index] as Map<String, dynamic>;
-                      bool isMe = player['userId'] == firebaseService.userId;
-                      
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 8.0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          side: BorderSide(
-                            color: isMe ? Theme.of(context).colorScheme.secondary : Colors.transparent,
-                            width: 1.5
-                          )
-                        ),
-                        color: Theme.of(context).cardColor,
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: player['isHost'] == true ? Colors.amber.withOpacity(0.2) : Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                            child: Icon(
-                              player['isHost'] == true ? Icons.star : Icons.person, 
-                              color: player['isHost'] == true ? Colors.amber : Theme.of(context).colorScheme.secondary
-                            ),
-                          ),
-                          title: Text(
-                            player['nickname'] ?? 'Unknown', 
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
-                          ),
-                          trailing: isMe ? const Text('(You)', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)) : null,
-                        ),
-                      );
-                    },
+                Text(
+                  player['nickname'].toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white, 
+                    fontSize: 12, 
+                    fontWeight: FontWeight.w800, 
+                    letterSpacing: 1
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  isPlayerHost ? "CAPTAIN" : "PLAYER",
+                  style: TextStyle(
+                    color: isPlayerHost ? Colors.blue : Colors.white24, 
+                    fontSize: 8, 
+                    fontWeight: FontWeight.bold
                   ),
                 ),
-                const SizedBox(height: 20),
-                
-                // Sculpted Action Area
-                if (isHost)
-                  ElevatedButton(
-                    onPressed: () {
-                      if (gameId == 'guess_the_liar' && players.length < 3) {
-                        snackbarKey.currentState?.showSnackBar(const SnackBar(content: Text('Guess the Liar needs at least 3 players to start.')));
-                        return;
-                      } else if (gameId == 'dont_get_me_started' && players.length < 2) {
-                        snackbarKey.currentState?.showSnackBar(const SnackBar(content: Text("Don't Get Me Started needs at least 2 players to start.")));
-                        return;
-                      } else if (gameId == 'sync' && players.length < 2) {
-                        snackbarKey.currentState?.showSnackBar(const SnackBar(content: Text("Sync needs at least 2 players to start.")));
-                        return;
-                      }
-                      firebaseService.startGame(roomCode, gameId);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.greenAccent[700], 
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
-                    ),
-                    child: const Text('Start Game'),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(30)),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54)),
-                        SizedBox(width: 16),
-                        Text('Waiting for host to start...', style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
               ],
             ),
-          );
-        },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionArea(int playerCount) {
+    return Padding(
+      padding: const EdgeInsets.all(32.0),
+      child: widget.isHost
+          ? ElevatedButton(
+              onPressed: () async {
+                print("DEBUG: Initialize Button Pressed!");
+                HapticFeedback.mediumImpact();
+                
+                if (firebaseService.userId == null) {
+                  print("DEBUG: Firebase userId is NULL!");
+                  return;
+                }
+
+                try {
+                  print("DEBUG: Calling startGame for room: ${widget.roomCode}");
+                  await firebaseService.startGame(widget.roomCode, widget.gameId);
+                  print("DEBUG: startGame execution finished.");
+                } catch (e) {
+                  print("DEBUG: Catch block caught: $e");
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                minimumSize: const Size(double.infinity, 64),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                elevation: 10,
+                shadowColor: Colors.blue.withOpacity(0.5),
+              ),
+              child: const Text(
+                "INITIALIZE MISSION",
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2),
+              ),
+            )
+          : Column(
+              children: [
+                const SizedBox(width: 20, height: 20, 
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white24)),
+                const SizedBox(height: 15),
+                Text(
+                  "WAITING FOR CAPTAIN TO START ($playerCount PLAYERS CONNECTED)",
+                  style: const TextStyle(
+                    color: Colors.white24, 
+                    fontSize: 9, 
+                    letterSpacing: 1.5, 
+                    fontWeight: FontWeight.bold
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _glowOrb(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+        boxShadow: [BoxShadow(color: color, blurRadius: 100, spreadRadius: 40)],
       ),
     );
   }
