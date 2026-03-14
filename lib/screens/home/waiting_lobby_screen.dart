@@ -24,51 +24,56 @@ class WaitingLobbyScreen extends StatefulWidget {
 class _WaitingLobbyScreenState extends State<WaitingLobbyScreen> {
   bool _hasExited = false;
 
+  
+  bool _isStarting = false; // Add this at the top with your rounds variable
+  static int _selectedRounds = 5; // Default value
+
   // --- 1. THE AUTO-NAVIGATOR ---
   void _handleNavigation(Map<String, dynamic> data) {
-    // STOPS THE LOOP: If we already started exiting, stop everything
-    if (_hasExited || !mounted) return;
+  // 1. HARD STOP: Check the gatekeeper immediately
+  if (_hasExited || !mounted) return;
 
-    final String status = data['status'] ?? 'waiting';
-    final String gamePhase = data['gamePhase'] ?? '';
-    final List<dynamic> players = data['players'] ?? [];
+  final String status = data['status'] ?? 'waiting';
+  final String gamePhase = data['gamePhase'] ?? '';
+  final List<dynamic> players = data['players'] ?? [];
 
-    // Check if I was kicked
-    bool iAmStillInRoom = players.any((p) => p['userId'] == firebaseService.userId);
+  // Check if I was kicked
+  bool iAmStillInRoom = players.any((p) => p['userId'] == firebaseService.userId);
 
-    if (!iAmStillInRoom) {
-      _hasExited = true; 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-          snackbarKey.currentState?.showSnackBar(
-            const SnackBar(content: Text("You were removed from the room.")),
-          );
-        }
-      });
-      return;
-    }
-
-    // Check if Game Started
-    if (status == 'playing' && gamePhase.isNotEmpty) {
-      // CRITICAL: Set this to true BEFORE the Navigator call to stop the loop
-      _hasExited = true; 
-      
-      print("NAVIGATOR: Launching /play/${widget.gameId}...");
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          // Use pushNamedAndRemoveUntil to clear lobby from stack but keep Home
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/play/${widget.gameId}',
-            (route) => route.settings.name == '/home',
-            arguments: {'roomCode': widget.roomCode, 'gameId': widget.gameId},
-          );
-        }
-      });
-    }
+  if (!iAmStillInRoom) {
+    _hasExited = true; // Lock navigation
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        snackbarKey.currentState?.showSnackBar(
+          const SnackBar(content: Text("You were removed from the room.")),
+        );
+      }
+    });
+    return;
   }
+
+  // 2. CHECK STATUS: Only move if status is 'playing' AND we have a phase
+  if (status == 'playing' && gamePhase.isNotEmpty) {
+    
+    // 🚨 THE FIX: Double-lock before the async gap
+    _hasExited = true; 
+    
+    print("NAVIGATOR: Redirecting to game... Rounds logic should be locked now.");
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // Ensure we are using the correct route path
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/play/${widget.gameId}',
+          (route) => route.isFirst, // Simpler way to get back to home if needed
+          arguments: {'roomCode': widget.roomCode, 'gameId': widget.gameId},
+        );
+      }
+    });
+  }
+}
 
   // --- 2. THE KICK DIALOG ---
   void _showKickConfirmation(String targetUserId, String nickname) {
@@ -137,6 +142,8 @@ class _WaitingLobbyScreenState extends State<WaitingLobbyScreen> {
                   children: [
                     _buildHeader(),
                     _buildRoomCodeDisplay(),
+
+                    _buildRoundPicker(),
                     
                     const SizedBox(height: 40),
                     const Text(
@@ -178,6 +185,47 @@ class _WaitingLobbyScreenState extends State<WaitingLobbyScreen> {
   }
 
   // --- UI COMPONENTS ---
+
+
+
+Widget _buildRoundPicker() {
+  if (!widget.isHost) return const SizedBox.shrink();
+
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.05),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.white10),
+    ),
+    child: Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text("TOTAL ROUNDS", style: TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 2)),
+            Text("$_selectedRounds", style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        Slider(
+          value: _selectedRounds.toDouble(),
+          min: 3,
+          max: 15,
+          divisions: 12,
+          activeColor: Colors.blueAccent,
+          inactiveColor: Colors.white10,
+          onChanged: (value) {
+            setState(() {
+              _selectedRounds = value.toInt();
+            });
+            HapticFeedback.selectionClick();
+          },
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildHeader() {
     return Padding(
@@ -308,9 +356,11 @@ class _WaitingLobbyScreenState extends State<WaitingLobbyScreen> {
       padding: const EdgeInsets.all(32.0),
       child: widget.isHost
           ? ElevatedButton(
-              onPressed: () async {
+              onPressed: _isStarting ? null : () async { // Disable button if already starting
+  setState(() => _isStarting = true);
                 print("DEBUG: Initialize Button Pressed!");
                 HapticFeedback.mediumImpact();
+                await firebaseService.startGame(widget.roomCode, widget.gameId, hostChosenRounds: _selectedRounds);
                 
                 if (firebaseService.userId == null) {
                   print("DEBUG: Firebase userId is NULL!");

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:collection/collection.dart'; // For .firstWhereOrNull
+import 'package:collection/collection.dart'; 
+import 'dart:ui'; // Required for ImageFilter
 
-// Import your centralized services and models
 import '../../services/firebase_service.dart';
 import '../../models/game_model.dart';
 
@@ -29,445 +29,419 @@ class _SyncGameScreenState extends State<SyncGameScreen> {
   @override
   Widget build(BuildContext context) {
     final currentGame = games.firstWhere((g) => g.id == widget.gameId, orElse: () => games.first);
+    
     return Scaffold(
-      appBar: AppBar(title: Text(currentGame.name), elevation: 0, backgroundColor: Colors.transparent,),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: firebaseService.getRoomStream(widget.roomCode),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            print("SyncGS(Stream): Error: ${snapshot.error}");
-            return Center(child: Text('Error loading game data: ${snapshot.error}'));
-          }
-          if (snapshot.data == null || !snapshot.data!.exists) {
-            print("SyncGS(Stream): Data is null or does not exist. Navigating home.");
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && ModalRoute.of(context)?.isCurrent == true) {
-                Navigator.popUntil(context, ModalRoute.withName('/home'));
-              }
-            });
-            return const Center(child: Text("Room not found or no game data. Returning..."));
-          }
+      backgroundColor: const Color(0xFF04060E),
+      body: Stack(
+        children: [
+          // Ambient Glows for the "Neural Link" vibe
+          Positioned(top: -150, left: -50, child: _glowOrb(400, Colors.blueAccent.withOpacity(0.1))),
+          Positioned(bottom: -150, right: -50, child: _glowOrb(400, Colors.purpleAccent.withOpacity(0.05))),
 
-          // Data exists, extract room data
-          final roomData = snapshot.data!.data() as Map<String, dynamic>;
-          final String currentUserId = firebaseService.getCurrentUserId();
-          final String gamePhase = roomData['gamePhase'] ?? 'loading'; 
+          SafeArea(
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: firebaseService.getRoomStream(widget.roomCode),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || !snapshot.data!.exists) {
+                  return const Center(child: CircularProgressIndicator(color: Colors.blue));
+                }
 
-          final Map<String, dynamic>? currentPlayer = (roomData['players'] as List<dynamic>?)
-              ?.firstWhereOrNull((p) => p['userId'] == currentUserId);
+                final roomData = snapshot.data!.data() as Map<String, dynamic>;
+                final String currentUserId = firebaseService.userId ?? '';
+                final String gamePhase = roomData['gamePhase'] ?? 'answering'; 
 
-          if (currentPlayer == null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && ModalRoute.of(context)?.isCurrent == true) {
-                Navigator.popUntil(context, ModalRoute.withName('/home'));
-              }
-            });
-            return const Center(child: Text('Player data not found. Returning...'));
-          }
+                final List<dynamic> players = roomData['players'] ?? [];
+                final Map<String, dynamic>? currentPlayer = players.firstWhereOrNull((p) => p['userId'] == currentUserId);
 
-          List<dynamic> allPlayers = List<dynamic>.from(roomData['players'] ?? []);
+                if (currentPlayer == null) return const Center(child: Text("Reconnecting...", style: TextStyle(color: Colors.white)));
 
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Score and Info Panel
-                Card(
-                  color: Theme.of(context).cardColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(children: [Text("ROOM CODE", style: TextStyle(color: Colors.white54, letterSpacing: 1)), SelectableText(widget.roomCode, style: Theme.of(context).textTheme.titleLarge?.copyWith(letterSpacing: 2, fontWeight: FontWeight.bold),)]),
-                        Column(children: [Text("SCORE", style: TextStyle(color: Colors.white54, letterSpacing: 1)), Text('${currentPlayer['score'] ?? 0}', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.lightGreenAccent, fontWeight: FontWeight.bold),)])
-                      ],
-                    ),
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      _buildHeader(currentGame.name.toUpperCase()),
+                      const SizedBox(height: 20),
+                      _buildTopStats(widget.roomCode, currentPlayer['score'] ?? 0),
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 500),
+                          child: _buildPhaseUI(gamePhase, roomData, currentPlayer),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      switch (gamePhase) {
-                        case 'answeringSync':
-                          return _buildAnsweringSyncUI(roomData, currentPlayer);
-                        case 'revealingAnswersSync':
-                          return _buildRevealingAnswersSyncUI(roomData, currentPlayer);
-                        case 'roundResults': 
-                          return _buildRoundResultsSyncUI(roomData, currentPlayer);
-                        case 'gameOver':
-                          return _buildGameOverUI(context, roomData, allPlayers);
-                        default:
-                          return const Center(child: Text('Loading phase...'));
-                      }
-                    },
-                  ),
-                ),
-              ],
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
 
+  Widget _buildHeader(String title) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.wifi_tethering, color: Colors.blueAccent, size: 20),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 4, fontSize: 16),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhaseUI(String phase, Map<String, dynamic> roomData, Map<String, dynamic> currentPlayer) {
+    switch (phase) {
+      case 'answering':
+        return _buildAnsweringSyncUI(roomData, currentPlayer);
+      case 'revealingAnswersSync':
+        return _buildRevealingAnswersSyncUI(roomData, currentPlayer);
+      case 'roundResults':
+        return _buildRoundResultsSyncUI(roomData, currentPlayer);
+      case 'gameOver':
+        return _buildGameOverUI(context, roomData);
+      default:
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: Colors.blueAccent),
+              const SizedBox(height: 20),
+              Text("Establishing Link: '$phase'...", style: const TextStyle(color: Colors.white38)),
+            ],
+          ),
+        );
+    }
+  }
+
+  // --- STATS HEADER ---
+  Widget _buildTopStats(String code, int score) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.03),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("DATA STREAM", style: TextStyle(color: Colors.white24, fontSize: 9, letterSpacing: 1.5)),
+                  Text(code, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.white)),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text("SYNC RATE", style: TextStyle(color: Colors.white24, fontSize: 9, letterSpacing: 1.5)),
+                  Text('$score', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.blueAccent)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- PHASE 1: ANSWERING (Neural Link Design) ---
   Widget _buildAnsweringSyncUI(Map<String, dynamic> roomData, Map<String, dynamic> currentPlayer) {
-    // Logical Fix: Fetching the actual question text from the document
-    String currentQuestion = roomData['currentQuestionText'] ?? 'Loading question...';
-    bool hasAnswered = currentPlayer['isReadyInSyncPhase'] ?? false; 
+    String currentQuestion = roomData['currentQuestionText'] ?? 'INITIALIZING CATEGORY...';
+    bool hasAnswered = currentPlayer['isReadyInSyncPhase'] ?? false;
+
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildMinimalProgressBar(roomData['currentRound'] ?? 1, roomData['totalRounds'] ?? 5),
+          const SizedBox(height: 40),
+          
+          // Glass-morphic Question Card
+          ClipRRect(
+            borderRadius: BorderRadius.circular(30),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(40),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.03),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Column(
+                  children: [
+                    const Text("INPUT CATEGORY", 
+                        style: TextStyle(color: Colors.blueAccent, letterSpacing: 4, fontSize: 10, fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 24),
+                    Text(
+                      currentQuestion.toUpperCase(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 28, 
+                        fontWeight: FontWeight.w900, 
+                        color: Colors.white,
+                        letterSpacing: 1.2,
+                        shadows: [Shadow(color: Colors.blueAccent, blurRadius: 15)]
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 50),
+
+          if (!hasAnswered) ...[
+            _buildNeuralTextField(),
+            const SizedBox(height: 24),
+            _buildNeonButton("SUBMIT TO NEURAL LINK", _submitAnswerSync),
+          ] else 
+            _buildLockedInState(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMinimalProgressBar(int current, int total) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(total, (index) {
+        bool isCurrent = index == current - 1;
+        bool isPast = index < current - 1;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          height: 4,
+          width: isCurrent ? 30 : 12,
+          decoration: BoxDecoration(
+            color: isCurrent ? Colors.blueAccent : (isPast ? Colors.blueAccent.withOpacity(0.4) : Colors.white10),
+            borderRadius: BorderRadius.circular(2),
+            boxShadow: isCurrent ? [const BoxShadow(color: Colors.blueAccent, blurRadius: 8)] : [],
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildNeuralTextField() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: TextField(
+        controller: _answerController,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: Colors.white, fontSize: 20, letterSpacing: 2),
+        decoration: const InputDecoration(
+          hintText: "TYPE YOUR RESPONSE...",
+          hintStyle: TextStyle(color: Colors.white10, fontSize: 14, letterSpacing: 2),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: 24),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNeonButton(String text, VoidCallback onPressed) {
+    return ElevatedButton(
+      onPressed: _isLoading ? null : onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blueAccent,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(double.infinity, 65),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 10,
+        shadowColor: Colors.blueAccent.withOpacity(0.5),
+      ),
+      child: _isLoading 
+        ? const CircularProgressIndicator(color: Colors.white) 
+        : Text(text, style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 2)),
+    );
+  }
+
+  Widget _buildLockedInState() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.greenAccent.withOpacity(0.02),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.greenAccent.withOpacity(0.15)),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.check_circle_outline, color: Colors.greenAccent, size: 40),
+          const SizedBox(height: 16),
+          const Text("RESPONSE ENCRYPTED", 
+            style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 12)),
+          const SizedBox(height: 8),
+          const Text("WAITING FOR OTHER DATA NODES...", 
+            style: TextStyle(color: Colors.white24, fontSize: 10, letterSpacing: 1)),
+        ],
+      ),
+    );
+  }
+
+  // --- PHASE 2: REVEALING ---
+  Widget _buildRevealingAnswersSyncUI(Map<String, dynamic> roomData, Map<String, dynamic> currentPlayer) {
+    List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
+    bool isHost = roomData['hostId'] == firebaseService.userId;
+
+    Map<String, List<String>> groups = {};
+    for (var p in players) {
+      String ans = (p['answerSync'] ?? "No Answer").toString().toLowerCase().trim();
+      if(ans.isNotEmpty) groups.putIfAbsent(ans, () => []).add(p['nickname']);
+    }
+
+    return Column(
+      children: [
+        const Text("NEURAL COHERENCE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueAccent, letterSpacing: 4)),
+        const SizedBox(height: 24),
+        Expanded(
+          child: ListView(
+            children: groups.entries.map((entry) {
+              bool isMatch = entry.value.length > 1;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: isMatch ? Colors.green.withOpacity(0.08) : Colors.white.withOpacity(0.02),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: isMatch ? Colors.greenAccent.withOpacity(0.3) : Colors.white10),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(child: Text('"${entry.key.toUpperCase()}"', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.white, letterSpacing: 1))),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isMatch ? Colors.greenAccent.withOpacity(0.1) : Colors.white10,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text("${entry.value.length} NODES", style: TextStyle(color: isMatch ? Colors.greenAccent : Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        if (isHost)
+          Padding(
+            padding: const EdgeInsets.only(top: 20),
+            child: _buildNeonButton("CONTINUE TO LOGS", () => firebaseService.nextPhase(widget.roomCode, 'roundResults')),
+          ),
+      ],
+    );
+  }
+
+  // --- PHASE 3: ROUND RESULTS ---
+  Widget _buildRoundResultsSyncUI(Map<String, dynamic> roomData, Map<String, dynamic> currentPlayer) {
+    List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
+    bool isHost = roomData['hostId'] == firebaseService.userId;
+    players.sort((a, b) => (b['score'] ?? 0).compareTo(a['score'] ?? 0));
+
+    return Column(
+      children: [
+        const Text("SYNC RANKINGS", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueAccent, letterSpacing: 4)),
+        const SizedBox(height: 24),
+        Expanded(
+          child: ListView.builder(
+            itemCount: players.length,
+            itemBuilder: (context, index) => Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.02),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: ListTile(
+                leading: Text("#${index + 1}", style: const TextStyle(color: Colors.white24, fontWeight: FontWeight.bold)),
+                title: Text(players[index]['nickname'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                trailing: Text("${players[index]['score']} PTS", style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.w900)),
+              ),
+            ),
+          ),
+        ),
+        if (isHost)
+          Padding(
+            padding: const EdgeInsets.only(top: 20),
+            child: _buildNeonButton(
+              (roomData['currentRound'] ?? 1) >= (roomData['totalRounds'] ?? 3) ? "FINAL RESULTS" : "NEXT ROUND",
+              () {
+                if ((roomData['currentRound'] ?? 1) >= (roomData['totalRounds'] ?? 3)) {
+                  firebaseService.nextPhase(widget.roomCode, 'gameOver');
+                } else {
+                  firebaseService.nextRound(widget.roomCode, widget.gameId);
+                }
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  // --- PHASE 4: GAME OVER ---
+  Widget _buildGameOverUI(BuildContext context, Map<String, dynamic> roomData) {
+    List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
+    players.sort((a, b) => (b['score'] ?? 0).compareTo(a['score'] ?? 0));
+    final winner = players.first;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          'Round ${roomData['currentRound'] ?? 1} / ${roomData['totalRounds'] ?? 1}',
-          style: Theme.of(context).textTheme.titleMedium,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'Name something that fits this category...',
-          style: Theme.of(context).textTheme.titleLarge,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 10),
-        // Question Panel with depth
-        Card(
-          elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Container(
-            padding: const EdgeInsets.all(24.0),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: LinearGradient(colors: [Color(0xFF231454), Color(0xFF130A24)], begin: Alignment.topLeft, end: Alignment.bottomRight) // Subtle card gradient
-            ),
-            child: Text(
-              currentQuestion,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Theme.of(context).colorScheme.secondary),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-        const SizedBox(height: 30),
-        if (!hasAnswered)
-          TextField(
-            controller: _answerController,
-            decoration: const InputDecoration(
-              hintText: 'Type your answer here to sync!',
-              border: OutlineInputBorder(),
-            ),
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-            maxLines: 1, 
-          )
-        else
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(10)),
-            child: Text(
-              'Your Answer: "${currentPlayer['answerSync'] ?? ''}"',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.lightGreenAccent),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        const SizedBox(height: 30),
-        if (!hasAnswered)
-          ElevatedButton(
-            onPressed: _isLoading ? null : () => _submitAnswerSync(),
-            child: _isLoading
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white))
-                : const Text('Submit Answer'),
-          )
-        else
-          Text(
-            'Answer submitted! Waiting for others...',
-            style: Theme.of(context).textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
+        const Icon(Icons.emoji_events_outlined, size: 80, color: Colors.amber),
+        const SizedBox(height: 24),
+        const Text("NEURAL SYNC COMPLETE", style: TextStyle(color: Colors.white38, letterSpacing: 4, fontSize: 10, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text(winner['nickname'].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w900, letterSpacing: 2)),
+        const Text("HIGHEST COHERENCE RATE", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 60),
+        _buildNeonButton("DISCONNECT LINK", () => Navigator.popUntil(context, ModalRoute.withName('/home'))),
       ],
     );
   }
 
-  Widget _buildRevealingAnswersSyncUI(Map<String, dynamic> roomData, Map<String, dynamic> currentPlayer) {
-    List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
-    bool isHost = roomData['hostId'] == firebaseService.getCurrentUserId();
-
-    // Group answers using the normalized form as the key
-    Map<String, List<Map<String, dynamic>>> groupedAnswers = {};
-    Map<String, String> normalizedToRepresentativeOriginal = {}; 
-
-    for (var p in players) {
-      final player = Map<String, dynamic>.from(p);
-      String? answer = player['answerSync'] as String?;
-      if (answer != null && answer.isNotEmpty) {
-        String normalizedAnswer = _normalizeAnswer(answer);
-        if (!groupedAnswers.containsKey(normalizedAnswer)) {
-          groupedAnswers[normalizedAnswer] = [];
-          normalizedToRepresentativeOriginal[normalizedAnswer] = answer; 
-        }
-        groupedAnswers[normalizedAnswer]!.add(player);
-      }
-    }
-
-    List<MapEntry<String, List<Map<String, dynamic>>>> sortedGroups = groupedAnswers.entries.toList();
-    sortedGroups.sort((a, b) => b.value.length.compareTo(a.value.length)); // Sort by group size
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Round ${roomData['currentRound'] ?? 1} Matches!',
-          style: Theme.of(context).textTheme.titleLarge,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 20),
-        Expanded(
-          child: ListView.builder(
-            itemCount: sortedGroups.length,
-            itemBuilder: (context, index) {
-              final entry = sortedGroups[index];
-              final normalizedAnswerKey = entry.key; 
-              final displayAnswer = normalizedToRepresentativeOriginal[normalizedAnswerKey] ?? normalizedAnswerKey; 
-              final playersInGroup = entry.value;
-              bool isMatchedGroup = playersInGroup.length > 1;
-
-              return Card(
-                color: isMatchedGroup ? Colors.blueAccent.withOpacity(0.2) : Theme.of(context).cardColor,
-                margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15.0),
-                  side: BorderSide(color: isMatchedGroup ? Colors.blueAccent : Colors.transparent, width: 1),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '"$displayAnswer"', 
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: isMatchedGroup ? Theme.of(context).colorScheme.secondary : Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 10.0, 
-                        runSpacing: 6.0, 
-                        children: playersInGroup.map((player) {
-                          return Chip(
-                            backgroundColor: player['userId'] == firebaseService.getCurrentUserId()
-                                ? Theme.of(context).colorScheme.primary
-                                : Colors.grey[800],
-                            label: Text(player['nickname'], style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          );
-                        }).toList(),
-                      ),
-                      if (isMatchedGroup)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12.0),
-                          child: Text(
-                            'Each player gets ${playersInGroup.length} points!',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.greenAccent, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 20),
-        if (isHost)
-          ElevatedButton(
-            onPressed: _isLoading ? null : () async {
-              setState(() => _isLoading = true);
-              await firebaseService.nextPhase(widget.roomCode, 'roundResults');
-              setState(() => _isLoading = false);
-            },
-            child: _isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text('Continue to Scores'),
-          )
-        else
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(30)),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54)),
-                SizedBox(width: 12),
-                Text('Waiting for host to continue...', style: TextStyle(color: Colors.white70, fontSize: 16)),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildRoundResultsSyncUI(Map<String, dynamic> roomData, Map<String, dynamic> currentPlayer) {
-    List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
-    bool isHost = roomData['hostId'] == firebaseService.getCurrentUserId();
-    int currentRound = roomData['currentRound'] as int? ?? 0;
-    int totalRounds = roomData['totalRounds'] as int? ?? 1;
-
-    // Sort players by total score descending
-    players.sort((a, b) => (b['score'] ?? 0).compareTo(a['score'] ?? 0));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Round $currentRound Results!',
-          style: Theme.of(context).textTheme.titleLarge,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'Total Scores:',
-          style: Theme.of(context).textTheme.titleMedium,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: ListView.builder(
-            itemCount: players.length,
-            itemBuilder: (context, index) {
-              var player = players[index] as Map<String, dynamic>;
-              return Card(
-                color: index == 0 ? Colors.amber[800] : Theme.of(context).cardColor,
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                child: ListTile(
-                  leading: Text("#${index + 1}", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                  title: Text(player['nickname'] as String? ?? 'Player', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                  trailing: Text("Score: ${player['score'] ?? 0}", style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.lightGreenAccent, fontWeight: FontWeight.bold)),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 20),
-        if (isHost)
-          ElevatedButton(
-            onPressed: _isLoading ? null : () {
-              if (currentRound >= totalRounds) {
-                firebaseService.nextPhase(widget.roomCode, 'gameOver');
-              } else {
-                firebaseService.nextRound(widget.roomCode, widget.gameId);
-              }
-            },
-            child: _isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : Text(currentRound >= totalRounds ? 'Show Final Results' : 'Start Next Round'),
-          )
-        else
-           Container(
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(30)),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54)),
-                SizedBox(width: 12),
-                Text('Waiting for host to continue...', style: TextStyle(color: Colors.white70, fontSize: 16)),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildGameOverUI(BuildContext context, Map<String, dynamic> roomData, List<dynamic> allPlayers) {
-    List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
-    players.sort((a, b) => (b['score'] ?? 0).compareTo(a['score'] ?? 0));
-
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Game Over!', style: Theme.of(context).textTheme.displaySmall, textAlign: TextAlign.center,),
-            const SizedBox(height: 20),
-            Text('Final Scores:', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center,),
-            const SizedBox(height: 10),
-            Expanded(child: ListView.builder(
-                itemCount: players.length,
-                itemBuilder: (context, index) {
-                    var player = players[index] as Map<String, dynamic>;
-                    return Card(
-                        color: index == 0 ? Colors.amber[800] : Theme.of(context).cardColor,
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        child: ListTile(
-                            leading: Text("#${index + 1}", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                            title: Text(player['nickname'] as String? ?? 'Player', style: TextStyle(fontWeight: FontWeight.bold)),
-                            trailing: Text("Score: ${player['score'] ?? 0}", style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.lightGreenAccent, fontWeight: FontWeight.bold)),
-                        ),
-                    );
-                }
-            )),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => Navigator.popUntil(context, ModalRoute.withName('/home')),
-              child: const Text('Return to Home'),
-            )
-          ],
+  // Helper for the ambient glow effect
+  Widget _glowOrb(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+        boxShadow: [BoxShadow(color: color, blurRadius: 100, spreadRadius: 40)],
       ),
     );
   }
 
-  String _normalizeAnswer(String answer) {
-    String normalized = answer.toLowerCase();
-    normalized = normalized.replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), ''); 
-    normalized = normalized.replaceAll(RegExp(r'\s+'), ' ').trim();
-
-    if (normalized.endsWith('es')) {
-      normalized = normalized.substring(0, normalized.length - 2);
-    } else if (normalized.endsWith('s') && normalized.length > 1 && !normalized.endsWith('ss')) {
-      normalized = normalized.substring(0, normalized.length - 1);
-    }
-    
-    normalized = normalized.replaceAll(' ', '');
-    return normalized;
-  }
-
   Future<void> _submitAnswerSync() async {
-    if (_answerController.text.trim().isEmpty) {
-      snackbarKey.currentState?.showSnackBar(
-        const SnackBar(content: Text('Please enter an answer.')),
-      );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
+    if (_answerController.text.trim().isEmpty) return;
+    setState(() => _isLoading = true);
     try {
       await firebaseService.submitAnswerSync(
         widget.roomCode,
-        firebaseService.getCurrentUserId(),
+        firebaseService.userId ?? '',
         _answerController.text.trim(),
       );
-      _answerController.clear(); 
+      _answerController.clear();
     } catch (e) {
-      print("Error submitting Sync answer: $e");
-      snackbarKey.currentState?.showSnackBar(
-        SnackBar(content: Text('Error submitting answer: ${e.toString()}')),
-      );
+      print("Error: $e");
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 }

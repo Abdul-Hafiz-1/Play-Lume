@@ -699,7 +699,7 @@ Future<void> kickPlayer(String roomCode, String userIdToKick) async {
 
     await _firestore.collection('rooms').doc(roomCode).update({
       'status': 'playing',
-      'gamePhase': 'answeringSync', 
+      'gamePhase': 'answering', 
       'players': updatedPlayers,
       'currentQuestionIndex': questionIndex,
       'currentQuestionText': syncQuestions[questionIndex], 
@@ -707,134 +707,79 @@ Future<void> kickPlayer(String roomCode, String userIdToKick) async {
     });
   }
 
-  Future<void> startGame(String roomCode, String gameId) async {
-  if (userId == null) {
-    print("START_GAME: Failed - No User ID found.");
-    return;
-  }
+  // FIX: Added {int totalRounds = 5} as a named parameter
+
+
+  // 1. Rename the parameter to hostChosenRounds to avoid shadowing/conflicts
+Future<void> startGame(String roomCode, String gameId, {int hostChosenRounds = 5}) async {
+  if (userId == null) return;
 
   try {
-    print("START_GAME: Initializing [$gameId] for room [$roomCode]");
     DocumentReference roomRef = _firestore.collection('rooms').doc(roomCode);
+    
+    // 1. GET FRESH DATA
     DocumentSnapshot roomSnap = await roomRef.get();
+    if (!roomSnap.exists) return;
 
-    if (!roomSnap.exists) {
-      print("START_GAME: Failed - Room document does not exist.");
+    // 🚨 THE STALEMATE PROTECTOR:
+    // If status is already 'playing', it means the first call worked.
+    // We ABORT here so the second (default 5) call can't ruin the data.
+    if (roomSnap.get('status') == 'playing') {
+      print("⚠️ BLOCK: Game is already initialized. Ignoring duplicate call to save your rounds.");
       return;
     }
 
+    print("🔥 SERVICE_ENTRY: Valid start request received. Rounds: $hostChosenRounds");
+
+    // 2. Prepare Player Reset
     List<dynamic> playersList = List<dynamic>.from(roomSnap.get('players') ?? []);
+    for (var player in playersList) {
+      player['score'] = 0;
+      player['answerSync'] = "";
+      player['isReadyInSyncPhase'] = false;
+      player['isReady'] = false;
+    }
 
-    // ---------------------------------------------------------
-    // 1. SYNC GAME
-    // ---------------------------------------------------------
+    // 3. Define the update map
+    Map<String, dynamic> updateData = {
+      'status': 'playing',
+      'currentRound': 1,
+      'totalRounds': hostChosenRounds, 
+      'players': playersList,
+    };
+
+    // Set Phase and Update based on Game ID
     if (gameId == 'sync_game') {
-      if (playersList.length < 2) {
-        snackbarKey.currentState?.showSnackBar(const SnackBar(content: Text("Sync needs at least 2 players.")));
-        return;
-      }
-      await roomRef.update({
-        'status': 'playing',
-        'gamePhase': 'answering', // Matches SyncGameScreen logic
-        'currentRound': 1,
-      });
+      if (playersList.length < 2) return;
+      updateData['gamePhase'] = 'answering';
+      await roomRef.update(updateData);
       await _assignQuestionSync(roomCode, roomSnap);
-    }
+      
+    } else if (gameId == 'guess_the_liar') {
+      if (playersList.length < 3) return;
+      updateData['gamePhase'] = 'answering';
+      await roomRef.update(updateData);
+      _assignRolesAndQuestionsGTL(roomSnap, gameId, (gtlData) async {
+        await roomRef.update(gtlData);
+      });
 
-    // ---------------------------------------------------------
-    // 2. GUESS THE LIAR
-    // ---------------------------------------------------------
-    else if (gameId == 'guess_the_liar') {
-      if (playersList.length < 3) {
-        snackbarKey.currentState?.showSnackBar(const SnackBar(content: Text('Liar game needs at least 3 players.')));
-        return;
-      }
-      await roomRef.update({
-        'status': 'playing',
-        'gamePhase': 'answering',
-        'currentRound': 1,
-      });
-      _assignRolesAndQuestionsGTL(roomSnap, gameId, (updateData) async {
-        await roomRef.update(updateData);
-      });
-    }
-
-    // ---------------------------------------------------------
-    // 3. DONT GET ME STARTED
-    // ---------------------------------------------------------
-    else if (gameId == 'dont_get_me_started') {
-      if (playersList.length < 2) {
-        snackbarKey.currentState?.showSnackBar(const SnackBar(content: Text("Needs at least 2 players.")));
-        return;
-      }
-      await roomRef.update({
-        'status': 'playing',
-        'gamePhase': 'ranting', // Navigation trigger
-        'currentRound': 1,
-      });
+    } else if (gameId == 'dont_get_me_started') {
+      updateData['gamePhase'] = 'ranting';
+      await roomRef.update(updateData);
       await _assignRantingPlayerDGMS(roomCode, roomSnap);
-    }
 
-    // ---------------------------------------------------------
-    // 4. MOST LIKELY TO
-    // ---------------------------------------------------------
-    else if (gameId == 'most_likely_to') {
-      if (playersList.length < 3) {
-        snackbarKey.currentState?.showSnackBar(const SnackBar(content: Text("Needs at least 3 players.")));
-        return;
-      }
-      await roomRef.update({
-        'status': 'playing',
-        'gamePhase': 'voting',
-        'currentRound': 1,
-      });
+    } else if (gameId == 'most_likely_to') {
+      updateData['gamePhase'] = 'voting';
+      await roomRef.update(updateData);
       await _assignQuestionMLT(roomCode, roomSnap);
     }
 
-    // ---------------------------------------------------------
-    // 5. FALLBACK FOR OTHER GAMES
-    // ---------------------------------------------------------
-    else {
-      await roomRef.update({
-        'status': 'playing',
-        'gamePhase': 'started',
-        'currentRound': 1,
-      });
-    }
-
-    print("START_GAME: Firestore update successful. Players should auto-navigate.");
+    print("✅ START_GAME SUCCESS: Mission initialized with $hostChosenRounds rounds.");
 
   } catch (e) {
-    print('START_GAME_ERROR: $e');
-    snackbarKey.currentState?.showSnackBar(SnackBar(content: Text("Critical Error: $e")));
+    print('❌ START_GAME_ERROR: $e');
   }
 }
-
-  Future<void> nextRound(String roomCode, String gameId) async {
-    if (userId == null) return;
-    try {
-      DocumentReference roomRef = _firestore.collection('rooms').doc(roomCode);
-      DocumentSnapshot roomSnap = await roomRef.get();
-      if (!roomSnap.exists) return;
-
-      int newRound = (roomSnap.get('currentRound') as int? ?? 0) + 1;
-      await roomRef.update({'currentRound': newRound});
-
-      if (gameId == 'guess_the_liar') {
-        _assignRolesAndQuestionsGTL(roomSnap, gameId, (updateData) async {
-          await roomRef.update(updateData);
-        });
-      } else if (gameId == 'dont_get_me_started') {
-        await _assignRantingPlayerDGMS(roomCode, roomSnap);
-      } else if (gameId == 'sync') {
-        await _assignQuestionSync(roomCode, roomSnap);
-      } else if (gameId == 'most_likely_to') {
-        await _assignQuestionMLT(roomCode, roomSnap);
-      }
-    } catch (e) {
-      print('Error advancing to next round: $e');
-    }
-  }
 
   Future<void> setRanterTopic(String roomCode, String playerId, String topic) async {
     try {
@@ -1143,6 +1088,39 @@ Future<void> kickPlayer(String roomCode, String userIdToKick) async {
     try {
       await _firestore.collection('rooms').doc(roomCode).update({'gamePhase': newPhase});
     } catch (e) { rethrow; }
+  }
+
+  Future<void> nextRound(String roomCode, String gameId) async {
+    final roomRef = _firestore.collection('rooms').doc(roomCode);
+    DocumentSnapshot roomSnap = await roomRef.get();
+    if (!roomSnap.exists) return;
+
+    int currentRound = roomSnap.get('currentRound') ?? 1;
+    int totalRounds = roomSnap.get('totalRounds') ?? 3;
+
+    if (currentRound >= totalRounds) {
+      await roomRef.update({'gamePhase': 'gameOver'});
+      return;
+    }
+
+    print("DEBUG: Checking currentRound ($currentRound) against totalRounds ($totalRounds)");
+
+    await roomRef.update({'currentRound': currentRound + 1});
+
+    // Assign new question or phase based on gameId
+    if (gameId == 'sync_game') {
+      await _assignQuestionSync(roomCode, roomSnap);
+    } else if (gameId == 'guess_the_liar') {
+      _assignRolesAndQuestionsGTL(roomSnap, gameId, (updateData) async {
+        await roomRef.update(updateData);
+      });
+    } else if (gameId == 'dont_get_me_started') {
+      await _assignRantingPlayerDGMS(roomCode, roomSnap);
+    } else if (gameId == 'most_likely_to') {
+      await _assignQuestionMLT(roomCode, roomSnap);
+    } else {
+      await roomRef.update({'gamePhase': 'started'});
+    }
   }
 
   bool get isLoggedIn => userId != null && nickname != null;
