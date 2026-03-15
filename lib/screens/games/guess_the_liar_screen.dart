@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:collection/collection.dart'; // For .firstWhereOrNull
+import 'package:collection/collection.dart';
+import 'dart:ui';
+import 'package:flutter/services.dart';
 
-// Import your centralized services and models
 import '../../services/firebase_service.dart';
 import '../../models/game_model.dart';
 
@@ -16,508 +17,435 @@ class GuessTheLiarGameScreen extends StatefulWidget {
   State<GuessTheLiarGameScreen> createState() => _GuessTheLiarGameScreenState();
 }
 
-class _GuessTheLiarGameScreenState extends State<GuessTheLiarGameScreen> {
+class _GuessTheLiarGameScreenState extends State<GuessTheLiarGameScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _answerController = TextEditingController();
   bool _isLoading = false;
   String? _selectedPlayerToVote;
+  bool _isQuestionRevealed = false;
+
+  // Scanner Animation variables
+  late AnimationController _scannerController;
+  late Animation<double> _scannerAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _scannerController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+    _scannerAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _scannerController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _answerController.dispose();
+    _scannerController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currentGame = games.firstWhere((g) => g.id == widget.gameId, orElse: () => games.first);
     return Scaffold(
-      appBar: AppBar(title: Text(currentGame.name)),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: firebaseService.getRoomStream(widget.roomCode),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            print('DEBUG: ConnectionState: Waiting'); // Added debug
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            print("GTLGS(Stream): Error: ${snapshot.error}");
-            return Center(child: Text('Error loading game data: ${snapshot.error}'));
-          }
-          if (snapshot.data == null || !snapshot.data!.exists) {
-            print("GTLGS(Stream): Data is null or does not exist. Navigating home."); // Added debug
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && ModalRoute.of(context)?.isCurrent == true) {
-                Navigator.popUntil(context, ModalRoute.withName('/home'));
-              }
-            });
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Room not found or no game data.', textAlign: TextAlign.center,),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () => Navigator.popUntil(context, ModalRoute.withName('/home')),
-                    child: const Text('Return to Home'),
-                  )
-                ],
-              ),
-            );
-          }
-
-          // Data exists, extract room data
-          final roomData = snapshot.data!.data() as Map<String, dynamic>;
-          final String currentUserId = firebaseService.getCurrentUserId();
-
-          List<dynamic> playersInRoom = List<dynamic>.from(roomData['players'] ?? []);
+      backgroundColor: const Color(0xFF04060E),
+      body: Stack(
+        children: [
+          // Ambient Glows
+          Positioned(top: -150, left: -50, child: _glowOrb(400, Colors.blueAccent.withOpacity(0.1))),
+          Positioned(bottom: -150, right: -50, child: _glowOrb(400, Colors.redAccent.withOpacity(0.05))),
           
-          final Map<String, dynamic>? currentPlayer = playersInRoom
-              .firstWhereOrNull((p) => p['userId'] == currentUserId);
+          SafeArea(
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: firebaseService.getRoomStream(widget.roomCode),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || !snapshot.data!.exists) {
+                  return const Center(child: CircularProgressIndicator(color: Colors.blueAccent));
+                }
 
-          if (currentPlayer == null) {
-            print('DEBUG: currentPlayer is NULL. currentUserId ($currentUserId) was NOT found in the players list from Firestore.');
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && ModalRoute.of(context)?.isCurrent == true) {
-                Navigator.popUntil(context, ModalRoute.withName('/home'));
-              }
-            });
-            return Center(
+                final roomData = snapshot.data!.data() as Map<String, dynamic>;
+                final String currentUserId = firebaseService.userId ?? '';
+                final List<dynamic> players = roomData['players'] ?? [];
+                final Map<String, dynamic>? me = players.firstWhereOrNull((p) => p['userId'] == currentUserId);
+
+                if (me == null) return const Center(child: Text("RECONNECTING...", style: TextStyle(color: Colors.white24)));
+
+                final String phase = roomData['gamePhase'] ?? 'answering';
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      _buildHeader(roomData['currentRound'] ?? 1, roomData['totalRounds'] ?? 5),
+                      const SizedBox(height: 20),
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 500),
+                          child: _buildPhaseUI(phase, roomData, me, players),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(int round, int total) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("MISSION STATUS", style: TextStyle(color: Colors.white24, fontSize: 10, letterSpacing: 2)),
+            Text("ROUND $round/$total", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
+          ],
+        ),
+        const Icon(Icons.security, color: Colors.redAccent, size: 24),
+      ],
+    );
+  }
+
+  Widget _buildPhaseUI(String phase, Map<String, dynamic> roomData, Map<String, dynamic> me, List<dynamic> players) {
+    switch (phase) {
+      case 'answering': return _buildAnsweringPhase(roomData, me);
+      case 'discussing': return _buildDiscussingPhase(roomData, players);
+      case 'voting': return _buildVotingPhase(roomData, players, me);
+      case 'reveal': return _buildRevealPhase(roomData, players, me);
+      case 'roundResults': return _buildRoundResults(roomData, players, me);
+      case 'gameOver': return _buildGameOver(roomData, players);
+      default: return const Center(child: CircularProgressIndicator());
+    }
+  }
+
+  // --- PHASE 1: ANSWERING (Fixed Hold-to-Reveal & Scanner Animation) ---
+  Widget _buildAnsweringPhase(Map<String, dynamic> roomData, Map<String, dynamic> me) {
+    bool hasAnswered = (me['answer'] as String? ?? '').isNotEmpty;
+    int round = roomData['currentRound'] ?? 1;
+
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          const SizedBox(height: 40),
+          // HOLD TO VIEW INTEL
+          GestureDetector(
+            onLongPressStart: (_) {
+              HapticFeedback.mediumImpact();
+              setState(() => _isQuestionRevealed = true);
+            },
+            onLongPressEnd: (_) {
+              setState(() => _isQuestionRevealed = false);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: double.infinity,
+              padding: const EdgeInsets.all(30),
+              decoration: BoxDecoration(
+                color: _isQuestionRevealed ? Colors.blueAccent.withOpacity(0.1) : Colors.white.withOpacity(0.03),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: _isQuestionRevealed ? Colors.blueAccent : Colors.redAccent.withOpacity(0.3)),
+              ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('You are not a player in this room. Returning to Home.', textAlign: TextAlign.center,),
+                  Text(_isQuestionRevealed ? "ACCESS GRANTED" : "HOLD TO DECRYPT INTEL", 
+                    style: TextStyle(color: _isQuestionRevealed ? Colors.blueAccent : Colors.redAccent, letterSpacing: 4, fontSize: 10, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () => Navigator.popUntil(context, ModalRoute.withName('/home')),
-                    child: const Text('Return to Home'),
-                  )
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: _isQuestionRevealed 
+                      ? Text(
+                          me['question']?.toUpperCase() ?? "", 
+                          key: const ValueKey("intel_visible"),
+                          textAlign: TextAlign.center, 
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)
+                        )
+                      : Icon(Icons.security, key: const ValueKey("intel_locked"), color: Colors.redAccent.withOpacity(0.5), size: 40),
+                  ),
                 ],
               ),
-            );
-          }
-
-          final String gamePhase = roomData['gamePhase'] as String? ?? '';
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Room Code: ${widget.roomCode}',
-                  style: Theme.of(context).textTheme.titleLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Your Score: ${currentPlayer['score'] ?? 0}',
-                  style: Theme.of(context).textTheme.titleMedium,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      switch (gamePhase) {
-                        case 'answering':
-                          return _buildAnsweringPhaseUI(context, roomData);
-                        case 'discussing':
-                          return _buildDiscussingPhaseUI(context, roomData);
-                        case 'voting':
-                          return _buildVotingPhaseUI(context, roomData);
-                        case 'reveal':
-                          return _buildRevealPhaseUI(context, roomData);
-                        case 'roundResults':
-                          return _buildRoundResultsUI(context, roomData, currentPlayer);
-                        case 'gameOver':
-                          return _buildGameOverUI(context, roomData);
-                        default:
-                          return Center(
-                            child: Text('Waiting for game to start or unknown phase: $gamePhase'),
-                          );
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildRoundResultsUI(BuildContext context, Map<String, dynamic> roomData, Map<String, dynamic> currentPlayer) {
-    List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
-    // Sort players by score descending
-    players.sort((a, b) => (b['score'] ?? 0).compareTo(a['score'] ?? 0));
-    int currentRound = roomData['currentRound'] as int? ?? 0;
-    int totalRounds = roomData['totalRounds'] as int? ?? 1;
-    bool isHost = currentPlayer['isHost'] ?? false;
-
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Round $currentRound Results!', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-          const SizedBox(height: 20),
-          Text('Scores:', style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
-          const SizedBox(height: 10),
-          Expanded(
-            child: ListView.builder(
-              itemCount: players.length,
-              itemBuilder: (context, index) {
-                var player = players[index] as Map<String, dynamic>;
-                return Card(
-                  color: index == 0 ? Colors.amber[800] : Theme.of(context).cardColor,
-                  child: ListTile(
-                    leading: Text("#${index + 1}", style: Theme.of(context).textTheme.titleLarge),
-                    title: Text(player['nickname'] as String? ?? 'Player'),
-                    trailing: Text("Score: ${player['score'] ?? 0}", style: Theme.of(context).textTheme.titleMedium),
-                  ),
-                );
-              },
             ),
           ),
-          const SizedBox(height: 20),
-          if (isHost)
-            ElevatedButton(
-              onPressed: () {
-                if (currentRound >= totalRounds) {
-                  firebaseService.nextPhase(widget.roomCode, 'gameOver');
-                } else {
-                  firebaseService.nextRound(widget.roomCode, widget.gameId);
-                }
-              },
-              child: Text(currentRound >= totalRounds ? 'Show Final Results' : 'Start Next Round'),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(top: 16.0),
-              child: Text("Waiting for host to continue...", textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
-            )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnsweringPhaseUI(BuildContext context, Map<String, dynamic> roomData) {
-      List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
-      Map<String, dynamic>? me = players.firstWhereOrNull((p) => (p as Map)['userId'] == firebaseService.userId) as Map<String, dynamic>?;
-      if (me == null) return const Center(child: Text("Error finding your player data."));
-      bool hasAnswered = (me['answer'] as String? ?? '').isNotEmpty;
-
-      return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Round ${roomData['currentRound'] ?? 1} / ${roomData['totalRounds'] ?? 1}', style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
-          const SizedBox(height:10),
-          Text('Your Question:', style: Theme.of(context).textTheme.bodyLarge, textAlign: TextAlign.center),
-          const SizedBox(height: 10),
-          Card( child: Padding( padding: const EdgeInsets.all(16.0), child: Text(me['question'] ?? "Loading...", style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),),),
-          const SizedBox(height: 30),
+          const SizedBox(height: 40),
           if (!hasAnswered) ...[
-            TextField( controller: _answerController, decoration: const InputDecoration(hintText: 'Type your answer here'), maxLines: 3, style: const TextStyle(color: Colors.white),),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _isLoading ? null : () async {
-                if (_answerController.text.trim().isEmpty) {
-                  snackbarKey.currentState?.showSnackBar(
-                    const SnackBar(content: Text("Please enter an answer before submitting."))
-                  );
-                  return;
-                }
-                setState(() {
-                  _isLoading = true;
-                });
-                try {
-                  await firebaseService.submitAnswer(widget.roomCode, firebaseService.userId!, _answerController.text.trim());
-                } catch (e) {
-                  snackbarKey.currentState?.showSnackBar(SnackBar(content: Text("Failed to submit answer: $e")));
-                } finally {
-                  if (mounted) {
-                    setState(() {
-                      _isLoading = false;
-                    });
-                  }
-                }
+            Container(
+              key: ValueKey("GTL_Input_Round_$round"),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(20)),
+              child: TextField(
+                controller: _answerController,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(hintText: "TRANSMIT YOUR ALIBI...", hintStyle: TextStyle(color: Colors.white12), border: InputBorder.none, contentPadding: EdgeInsets.all(20)),
+              ),
+            ),
+            const SizedBox(height: 30),
+            
+            // 🖐️ FINGERPRINT SCANNER SUBMIT
+            GestureDetector(
+              onLongPressStart: (_) {
+                HapticFeedback.heavyImpact();
+                _scannerController.repeat(reverse: true);
               },
-              child: _isLoading ? const SizedBox(width:20, height:20, child:CircularProgressIndicator(color: Colors.white)) : const Text('Submit Answer'),),
-          ] else ...[
-            Text("Answer Submitted!", style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.greenAccent), textAlign: TextAlign.center),
-            const SizedBox(height: 10),
-            Text("Waiting for other players...", style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
-          ],
+              onLongPressEnd: (_) async {
+                _scannerController.stop();
+                _scannerController.reset();
+                if (_answerController.text.trim().isEmpty) return;
+                
+                setState(() => _isLoading = true);
+                HapticFeedback.vibrate();
+                await firebaseService.submitAnswer(widget.roomCode, firebaseService.userId!, _answerController.text.trim());
+                if (mounted) setState(() => _isLoading = false);
+              },
+              child: Column(
+                children: [
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(25),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.blueAccent.withOpacity(0.5), width: 2),
+                        ),
+                        child: const Icon(Icons.fingerprint, color: Colors.blueAccent, size: 60),
+                      ),
+                      AnimatedBuilder(
+                        animation: _scannerAnimation,
+                        builder: (context, child) {
+                          return Positioned(
+                            top: 25 + (_scannerAnimation.value * 60),
+                            child: Opacity(
+                              opacity: _scannerController.isAnimating ? 1 : 0,
+                              child: Container(
+                                height: 2, width: 60,
+                                decoration: BoxDecoration(
+                                  color: Colors.cyanAccent,
+                                  boxShadow: [BoxShadow(color: Colors.cyanAccent.withOpacity(0.8), blurRadius: 10, spreadRadius: 2)],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text("HOLD TO SCAN & TRANSMIT", style: TextStyle(color: Colors.blueAccent, fontSize: 10, letterSpacing: 2)),
+                ],
+              ),
+            ),
+          ] else
+            _buildStatusCard("DATA SECURED", "SIGNAL ENCRYPTED...", Icons.lock, Colors.blueAccent),
         ],
       ),
     );
   }
 
-  Widget _buildDiscussingPhaseUI(BuildContext context, Map<String, dynamic> roomData) {
-    List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
-    Map<String, dynamic>? me = players.firstWhereOrNull((p) => (p as Map)['userId'] == firebaseService.userId) as Map<String, dynamic>?;
-    if (me == null) return const Center(child: Text("Error finding your player data."));
-    bool isHost = me['isHost'] ?? false;
+  // --- PHASE 2: DISCUSSING (Typewriter Transcript) ---
+  Widget _buildDiscussingPhase(Map<String, dynamic> roomData, List<dynamic> players) {
+    bool isHost = roomData['hostId'] == firebaseService.userId;
 
-    return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Discuss!', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-            const SizedBox(height: 10),
-            Card(
-              color: const Color(0xFF4A3780), // Purple color from screenshot
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Text(
-                  "The Original Question Was: ${roomData['originalQuestion'] ?? ''}",
-                  style: Theme.of(context).textTheme.titleMedium,
-                  textAlign: TextAlign.center,
+    return Column(
+      children: [
+        const Text("INTERROGATION TRANSCRIPT", style: TextStyle(color: Colors.white24, letterSpacing: 2, fontSize: 10, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 20),
+        Expanded(
+          child: ListView.builder(
+            itemCount: players.length,
+            itemBuilder: (context, index) {
+              final p = players[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.02),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Colors.white.withOpacity(0.05)),
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text('Answers:', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Expanded(
-              child: ListView.builder(
-                itemCount: players.length,
-                itemBuilder: (context, index) {
-                  var player = players[index] as Map<String, dynamic>;
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: ListTile(
-                      title: Text(player['nickname'] as String? ?? 'Player', style: TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text("Answer: ${player['answer'] as String? ?? '...'}", style: TextStyle(color: Colors.white70)),
-                    ),
-                  );
-                },
-              ),
-            ),
-            if (isHost)
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: ElevatedButton(
-                  onPressed: () {
-                    firebaseService.nextPhase(widget.roomCode, 'voting');
-                  },
-                  child: const Text('Start Voting Now'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("SUBJECT: ${p['nickname'].toUpperCase()}", style: const TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 6),
+                    Text(p['answer'] ?? "NO STATEMENT", style: const TextStyle(color: Colors.white, fontSize: 16)),
+                  ],
                 ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: Text("Waiting for host to start voting...", textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
-              )
-          ],
+              );
+            },
+          ),
         ),
-      );
+        if (isHost) _buildActionBtn("INITIATE VOTING", () => firebaseService.nextPhase(widget.roomCode, 'voting')),
+      ],
+    );
   }
 
-  Widget _buildVotingPhaseUI(BuildContext context, Map<String, dynamic> roomData) {
-    List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
-    Map<String, dynamic>? me = players.firstWhereOrNull((p) => (p as Map)['userId'] == firebaseService.userId) as Map<String, dynamic>?;
-    if (me == null) {
-      return const Center(child: Text("Error finding your player data."));
-    }
+  // --- PHASE 3: VOTING (Suspect Grid) ---
+  Widget _buildVotingPhase(Map<String, dynamic> roomData, List<dynamic> players, Map<String, dynamic> me) {
     bool hasVoted = me['votedFor'] != null;
+    final otherPlayers = players.where((p) => p['userId'] != firebaseService.userId).toList();
 
-    if (hasVoted) {
-      return Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Text("You voted!", style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.greenAccent)),
-          const SizedBox(height: 10),
-          Text("Waiting for other players to vote...", style: Theme.of(context).textTheme.bodyMedium),
-        ]),
-      );
-    }
+    if (hasVoted) return _buildStatusCard("VOTE CAST", "WAITING FOR JURY...", Icons.how_to_vote, Colors.redAccent);
 
-    // Filter out the current user from the list of voteable players
-    List<Map<String, dynamic>> voteablePlayers = players
-        .where((p) => (p as Map)['userId'] != firebaseService.userId)
-        .map((p) => Map<String, dynamic>.from(p as Map)).toList();
-
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Vote for the Liar!', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-          const SizedBox(height: 10),
-          Expanded(
-            child: ListView.builder(
-              itemCount: voteablePlayers.length,
-              itemBuilder: (context, index) {
-                var player = voteablePlayers[index];
-                final bool isSelected = _selectedPlayerToVote == player['userId'];
-                return Card(
-                  color: isSelected ? Colors.deepPurpleAccent : Theme.of(context).cardColor,
-                  child: ListTile(
-                    title: Text(player['nickname'] as String? ?? 'Player'),
-                    subtitle: Text("Answer: ${player['answer'] as String? ?? ''}", maxLines: 1, overflow: TextOverflow.ellipsis),
-                    onTap: () {
-                      setState(() {
-                        _selectedPlayerToVote = player['userId'] as String?;
-                      });
-                    },
+    return Column(
+      children: [
+        const Text("IDENTIFY THE EMBREACHER", style: TextStyle(color: Colors.redAccent, letterSpacing: 2, fontSize: 10, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 20),
+        Expanded(
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12),
+            itemCount: otherPlayers.length,
+            itemBuilder: (context, index) {
+              final p = otherPlayers[index];
+              bool isSelected = _selectedPlayerToVote == p['userId'];
+              return GestureDetector(
+                onTap: () => setState(() => _selectedPlayerToVote = p['userId']),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.redAccent.withOpacity(0.1) : Colors.white.withOpacity(0.02),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: isSelected ? Colors.redAccent : Colors.white10),
                   ),
-                );
-              },
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircleAvatar(backgroundColor: isSelected ? Colors.redAccent : Colors.white10, child: const Icon(Icons.person, color: Colors.white)),
+                      const SizedBox(height: 12),
+                      Text(p['nickname'].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        _buildActionBtn("STAMP AS SUSPECT", () async {
+          if (_selectedPlayerToVote == null) return;
+          await firebaseService.submitVote(widget.roomCode, firebaseService.userId!, _selectedPlayerToVote!);
+        }, color: Colors.redAccent),
+      ],
+    );
+  }
+
+  // --- PHASE 4: REVEAL (Fixed Liar Identification Logic) ---
+  Widget _buildRevealPhase(Map<String, dynamic> roomData, List<dynamic> players, Map<String, dynamic> me) {
+    bool? liarCaught = roomData['liarCaught'];
+    // 🔥 ALWAYS identify the actual embreacher based on the database flag
+    final actualLiar = players.firstWhereOrNull((p) => p['isLiar'] == true);
+    bool isHost = roomData['hostId'] == firebaseService.userId;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          liarCaught == true ? Icons.gavel : Icons.warning_amber_rounded,
+          size: 80,
+          color: liarCaught == true ? Colors.greenAccent : Colors.redAccent,
+        ),
+        const SizedBox(height: 20),
+        Text(liarCaught == true ? "TARGET NEUTRALIZED" : "SECURITY BREACH", 
+          style: TextStyle(color: liarCaught == true ? Colors.greenAccent : Colors.redAccent, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 2)),
+        const SizedBox(height: 30),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: Colors.white.withOpacity(0.03), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white10)),
+          child: Column(
+            children: [
+              const Text("THE ACTUAL EMBREACHER WAS:", style: TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 2)),
+              const SizedBox(height: 12),
+              Text(actualLiar?['nickname']?.toUpperCase() ?? "UNKNOWN", 
+                style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 40),
+        if (isHost) _buildActionBtn("VIEW MISSION LOGS", () => firebaseService.nextPhase(widget.roomCode, 'roundResults')),
+      ],
+    );
+  }
+
+  // --- PHASE 5: ROUND RESULTS ---
+  Widget _buildRoundResults(Map<String, dynamic> roomData, List<dynamic> players, Map<String, dynamic> me) {
+    bool isHost = roomData['hostId'] == firebaseService.userId;
+    List<dynamic> sortedPlayers = List.from(players);
+    sortedPlayers.sort((a, b) => (b['score'] ?? 0).compareTo(a['score'] ?? 0));
+
+    return Column(
+      children: [
+        const Text("MISSION DEBRIEF", style: TextStyle(color: Colors.white24, letterSpacing: 4, fontSize: 12, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 24),
+        Expanded(
+          child: ListView.builder(
+            itemCount: sortedPlayers.length,
+            itemBuilder: (context, index) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.02), borderRadius: BorderRadius.circular(12)),
+              child: ListTile(
+                leading: Text("#${index + 1}", style: const TextStyle(color: Colors.white24)),
+                title: Text(sortedPlayers[index]['nickname'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                trailing: Text("${sortedPlayers[index]['score']} PTS", style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.w900)),
+              ),
             ),
           ),
-          ElevatedButton(
-            onPressed: (_selectedPlayerToVote == null || _isLoading) ? null : () async {
-                setState(() {
-                  _isLoading = true;
-                });
-                try {
-                  await firebaseService.submitVote(widget.roomCode, firebaseService.userId!, _selectedPlayerToVote!);
-                } catch (e) {
-                  snackbarKey.currentState?.showSnackBar(SnackBar(content: Text("Failed to submit vote: $e")));
-                } finally {
-                  if(mounted) {
-                    setState(() {
-                      _isLoading = false;
-                    });
-                  }
-                }
-            },
-            child: _isLoading
-                ? const SizedBox(width:20, height:20, child: CircularProgressIndicator(color:Colors.white))
-                : Text(_selectedPlayerToVote == null
-                    ? "Select a Player to Vote"
-                    : 'Vote for ${
-                        (players.firstWhereOrNull((p) => (p as Map)['userId'] == _selectedPlayerToVote) 
-                            as Map<String, dynamic>?)?['nickname'] ?? 'Player'
-                      }'
-                  ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRevealPhaseUI(BuildContext context, Map<String, dynamic> roomData) {
-    List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
-    Map<String, dynamic>? me = players.firstWhereOrNull((p) => (p as Map)['userId'] == firebaseService.userId) as Map<String, dynamic>?; 
-    if (me == null) return const Center(child: Text("Error finding your player data."));
-    bool isHost = me['isHost'] ?? false;
-    bool? liarCaught = roomData['liarCaught'] as bool?;
-    int currentRound = roomData['currentRound'] as int? ?? 0;
-    int totalRounds = roomData['totalRounds'] as int? ?? 1;
-
-    if (liarCaught == null) {
-      return const Center(child: Text("Calculating results..."));
-    }
-
-    Map<String, dynamic>? liar = players.firstWhereOrNull((p) => (p as Map)['isLiar'] == true) as Map<String, dynamic>?;
-
-    return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Round $currentRound Results!', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-            Card(
-              color: liarCaught ? Colors.green[800] : Colors.red[800],
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  liarCaught
-                      ? "${liar?['nickname'] ?? 'The Liar'} was caught! Normal players get 1 point."
-                      : "${liar?['nickname'] ?? 'The Liar'} got away! The Liar gets 1 point.",
-                  style: Theme.of(context).textTheme.titleMedium,
-                  textAlign: TextAlign.center
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text("Your Role: ${me['isLiar'] == true ? 'You are the LIAR!' : 'You are a NORMAL PLAYER'}", 
-                 style: Theme.of(context).textTheme.titleMedium?.copyWith(color: me['isLiar'] == true ? Colors.redAccent : Colors.lightGreenAccent),
-                 textAlign: TextAlign.center),
-            const SizedBox(height: 10),
-            Text('All Players & Scores:', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 10),
-            Expanded(child: ListView.builder(
-                itemCount: players.length,
-                itemBuilder: (context, index) {
-                    var player = players[index] as Map<String, dynamic>;
-                    Color cardColor;
-                    if (player['isLiar'] == true) {
-                      cardColor = liarCaught ? Colors.red[700]! : Colors.green[700]!; 
-                    } else {
-                      cardColor = liarCaught ? Colors.green[700]! : Colors.red[700]!; 
-                    }
-                    return Card(
-                      color: cardColor,
-                      child: ListTile(
-                        leading: Icon(player['isLiar'] == true ? Icons.theater_comedy : Icons.person_search, color: Colors.white),
-                        title: Text('${player['nickname'] as String? ?? 'Player'} (Votes: ${player['votesReceived'] ?? 0})', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        trailing: Text("Score: ${player['score'] ?? 0}", style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
-                      ));
-                }
-            )),
-            if (isHost)
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (currentRound >= totalRounds) {
-                      firebaseService.nextPhase(widget.roomCode, 'gameOver');
-                    } else {
-                      firebaseService.nextRound(widget.roomCode, widget.gameId);
-                    }
-                  },
-                  child: Text(currentRound >= totalRounds ? 'Show Final Results' : 'Start Next Round'),
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: Text("Waiting for host to continue...", textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
-              )
-          ],
         ),
+        if (isHost)
+          _buildActionBtn("NEXT MISSION", () {
+            if ((roomData['currentRound'] ?? 1) >= (roomData['totalRounds'] ?? 3)) {
+              firebaseService.nextPhase(widget.roomCode, 'gameOver');
+            } else {
+              firebaseService.nextRound(widget.roomCode, widget.gameId);
+            }
+          }),
+      ],
     );
   }
 
-  Widget _buildGameOverUI(BuildContext context, Map<String, dynamic> roomData) {
-    List<dynamic> players = List<dynamic>.from(roomData['players'] ?? []);
-    // Sort players by score descending
-    players.sort((a, b) => (b['score'] ?? 0).compareTo(a['score'] ?? 0));
+  // --- PHASE 6: GAME OVER ---
+  Widget _buildGameOver(Map<String, dynamic> roomData, List<dynamic> players) {
+    List<dynamic> sortedPlayers = List.from(players);
+    sortedPlayers.sort((a, b) => (b['score'] ?? 0).compareTo(a['score'] ?? 0));
+    final winner = sortedPlayers.first;
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Game Over!', style: Theme.of(context).textTheme.displaySmall, textAlign: TextAlign.center,),
-            const SizedBox(height: 20),
-            Text('Final Scores:', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center,),
-            const SizedBox(height: 10),
-            Expanded(child: ListView.builder(
-                itemCount: players.length,
-                itemBuilder: (context, index) {
-                    var player = players[index] as Map<String, dynamic>;
-                    return Card(
-                        color: index == 0 ? Colors.amber[800] : Theme.of(context).cardColor,
-                        child: ListTile(
-                            leading: Text("#${index + 1}", style: Theme.of(context).textTheme.titleLarge),
-                            title: Text(player['nickname'] as String? ?? 'Player'),
-                            trailing: Text("Score: ${player['score'] ?? 0}", style: Theme.of(context).textTheme.titleMedium),
-                        ),
-                    );
-                }
-            )),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.popUntil(context, ModalRoute.withName('/home'));
-              },
-              child: const Text('Return to Home'),
-            )
-          ],
-      ),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.stars, color: Colors.amber, size: 80),
+        const SizedBox(height: 20),
+        const Text("CAMPAIGN COMPLETE", style: TextStyle(color: Colors.white24, letterSpacing: 4, fontSize: 12)),
+        Text(winner['nickname'].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 40),
+        _buildActionBtn("RETURN TO BASE", () => Navigator.popUntil(context, ModalRoute.withName('/home'))),
+      ],
     );
+  }
+
+  // --- UI HELPERS ---
+
+  Widget _buildActionBtn(String label, VoidCallback onTap, {Color color = Colors.blueAccent}) {
+    return ElevatedButton(
+      onPressed: _isLoading ? null : onTap,
+      style: ElevatedButton.styleFrom(backgroundColor: color, minimumSize: const Size(double.infinity, 60), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+      child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text(label, style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.white)),
+    );
+  }
+
+  Widget _buildStatusCard(String title, String sub, IconData icon, Color color) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(30),
+      decoration: BoxDecoration(color: color.withOpacity(0.05), borderRadius: BorderRadius.circular(24), border: Border.all(color: color.withOpacity(0.2))),
+      child: Column(children: [Icon(icon, color: color, size: 40), const SizedBox(height: 16), Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, letterSpacing: 2)), const SizedBox(height: 8), Text(sub, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white24, fontSize: 10))]),
+    );
+  }
+
+  Widget _glowOrb(double size, Color color) {
+    return Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, color: color, boxShadow: [BoxShadow(color: color, blurRadius: 100, spreadRadius: 40)]));
   }
 }
