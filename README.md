@@ -20,7 +20,7 @@ Family Focused: Built for all ages, focusing on social interaction, deduction, a
 
 Haptic Immersion: Feel every scan, decryption, and "mic drop" with integrated tactile feedback.
 
-# 🎮 The Game Library
+## 🎮 The Game Library
 # 🕵️ Guess The Liar
 A game of deception and intel. View your classified briefing, type your alibi, and try to blend in. Will the jury identify the embreacher, or will the liar successfully neutralize the target?
 
