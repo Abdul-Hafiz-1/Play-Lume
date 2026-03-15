@@ -20,20 +20,20 @@ Family Focused: Built for all ages, focusing on social interaction, deduction, a
 
 Haptic Immersion: Feel every scan, decryption, and "mic drop" with integrated tactile feedback.
 
-## 🎮 The Game Library
-# 🕵️ Guess The Liar
+# 🎮 The Game Library
+## 🕵️ Guess The Liar
 A game of deception and intel. View your classified briefing, type your alibi, and try to blend in. Will the jury identify the embreacher, or will the liar successfully neutralize the target?
 
-# 📊 Most Likely To
+## 📊 Most Likely To
 Social profiling at its finest. Cast your vote on who in the group is most likely to commit specific acts. View the statistical breakdown and see who is the "top suspect" in your family.
 
-#  📢 Don't Get Me Started
+##  📢 Don't Get Me Started
 The ultimate soapbox simulator. Get assigned a topic and go on a passionate rant while your family predicts your specific complaints. High energy, high stakes, and total meltdowns.
 
-# 🔗 Sync All
+## 🔗 Sync All
 The digital huddle. Use the unique Room Code system to bring everyone into the same encrypted lobby instantly.
 
-# 🛠️ Built With
+## 🛠️ Built With
 Flutter: For a smooth, high-performance cross-platform experience.
 
 Firebase: Real-time database syncing for seamless multiplayer logic.
