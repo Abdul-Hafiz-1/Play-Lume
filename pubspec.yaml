@@ -51,7 +51,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-    
+  
+
+
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -67,15 +69,18 @@ dev_dependencies:
 # ... (rest of your pubspec.yaml file)
 
 flutter_launcher_icons:
-  android: "launcher_icon" # Or true for default Android icon generation
-  ios: true                # Or true for default iOS icon generation
-  image_path: "lib/assets/logo1.png" # <--- This is the path to YOUR PNG
-  # Optional: specify a background color for adaptive icons on Android 8.0+
-  # For a transparent icon, you can set adaptive_icon_background to "#FFFFFF" or a matching color.
-  # Or, if your PNG already has a solid background, you can omit this.
-  adaptive_icon_background: "#121212" # Matches your app's dark background color
-  adaptive_icon_foreground: "lib/assets/logo1.png" # The logo itself for adaptive icons
+  android: true
+  ios: true
+  image_path: "assets/images/icon.png"
+  # For Android Adaptive Icons (The "Hole" in the background)
+  adaptive_icon_background: "#04060E" # Matches your game theme
+  adaptive_icon_foreground: "assets/images/icon.png"
   min_sdk_android: 21 # Set this to the minimum SDK version your app supports (default 21)
+
+flutter_native_splash:
+  color: "#04060E"
+  image: "assets/images/icon.png"
+  fullscreen: true
 
 # The following section is specific to Flutter packages.
 flutter:

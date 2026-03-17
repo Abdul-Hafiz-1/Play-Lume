@@ -23,9 +23,45 @@ class _SpyScreenState extends State<SpyScreen> {
   int _timeLeft = 480;
 
   final List<String> _locations = [
-    "Restaurant", "Hospital", "Space Station", "School", 
-    "Beach", "Airplane", "Submarine", "Movie Studio", 
-    "Police Station", "Cruise Ship", "Museum", "Zoo"
+    "Restaurant", "Hospital", "Space Station", "School", "Beach", "Airplane", 
+  "Submarine", "Movie Studio", "Police Station", "Cruise Ship", "Museum", "Zoo",
+  "Military Base", "Library", "Bank Vault", "Casino", "Embassy", "Subway Station",
+  "Amusement Park", "Hotel Lobby", "Airport Hangar", "Skyscraper Roof", "Underground Lab",
+  "Ski Resort", "Train Station", "Opera House", "Art Gallery", "Fire Station",
+  "Construction Site", "Shopping Mall", "Harbor", "Desert Oasis", "Rainforest",
+  "Volcano Observatory", "Nuclear Power Plant", "Football Stadium", "Concert Hall",
+  "Recording Studio", "Data Center", "Prison", "Courthouse", "Farm", "Vineyard",
+  "Lighthouse", "Aquarium", "Ice Rink", "Nightclub", "Bowling Alley", "Hardware Store",
+  "Flower Shop", "Bakery", "Gym", "Gas Station", "Post Office", "Cemetery",
+  "Castle", "Temple", "Monastery", "Treehouse", "Penthouse", "Basement",
+  "Attic", "Garage", "Workshop", "Secret Tunnel", "Sewer", "Junkyard",
+  "Car Wash", "Dentist Office", "Pharmacy", "Cyber Cafe", "Bowling Alley",
+  "Tattoo Parlor", "Bus Depot", "Ferry Terminal", "Clock Tower", "Windmill",
+  "Oil Rig", "Safari Park", "National Park", "Golf Course", "Tennis Court",
+  "University", "Observatory", "Weather Station", "Satellite Dish", "Dockyard",
+  "Cargo Ship", "Private Jet", "Blimp", "Cable Car", "Farris Wheel",
+  "Bazaar", "Fish Market", "Textile Factory", "Steel Mill", "Coal Mine",
+  "Diamond Mine", "Gold Mine", "Hidden Temple", "Ancient Ruins", "Pyramid",
+  "Sphinx", "Stonehenge", "Colosseum", "Eiffel Tower", "Big Ben",
+  "Statue of Liberty", "Great Wall", "Taj Mahal", "Cathedral", "Mosque",
+  "Synagogue", "Capitol Building", "City Hall", "Embassy", "Consulate",
+  "Safe House", "Hideout", "Bunker", "War Room", "Control Room",
+  "Launch Pad", "Space Shuttle", "Mars Colony", "Moon Base", "International Space Station",
+  "Submarine Base", "Aircraft Carrier", "Destroyer", "Frigate", "Patrol Boat",
+  "Lifeboat", "Raft", "Canoe", "Kayak", "Houseboat",
+  "Camper Van", "Motorhome", "Trailer Park", "Campsite", "Boy Scout Camp",
+  "Summer Camp", "Water Park", "Theme Park", "Circus Tent", "Carnival",
+  "Puppet Theater", "Drive-in Cinema", "Newsroom", "Radio Station", "TV Studio",
+  "Printing Press", "Library of Congress", "National Archives", "High School", "Elementary School",
+  "Kindergarten", "University Campus", "Dormitory", "Cafeteria", "Lecture Hall",
+  "Science Lab", "Chemistry Lab", "Physics Lab", "Biology Lab", "Computer Lab",
+  "Operating Room", "Emergency Room", "Waiting Room", "Doctor's Office", "Physical Therapy",
+  "X-ray Room", "Pharmacy", "Blood Bank", "Morgue", "Funeral Home",
+  "Jewelry Store", "Toy Store", "Candy Shop", "Ice Cream Parlor", "Coffee Shop",
+  "Juice Bar", "Steakhouse", "Pizzeria", "Sushi Bar", "Diner",
+  "Food Court", "Market Stall", "Grocery Store", "Supermarket", "Warehouse",
+  "Storage Unit", "Shipping Container", "Customs Office", "Passport Control", "Border Crossing",
+  "Checkpoint", "Guard Post", "Watchtower", "Brig", "Armory"
   ];
 
   @override
