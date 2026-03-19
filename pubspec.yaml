@@ -62,6 +62,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
   flutter_launcher_icons: "^0.13.1"
+  msix: ^3.16.13
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -95,7 +96,17 @@ flutter:
   # assets:
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
-
+msix_config:
+  display_name: Play Lume
+  publisher_display_name: Abdul Hafiz Nizamuddin
+  identity_name: com.abdulhafiz.playlume
+  publisher: CN=AbdulHafiz, O=AbdulHafiz, L=Mangalore, S=Karnataka, C=IN
+  logo_path: assets\images\Icon.png
+  # ADD THIS LINE BELOW:
+  assets_directory: data
+  capabilities: internetClient, location, microphone
+  architecture: x64
+  install_certificate: true
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

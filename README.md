@@ -1,6 +1,8 @@
 # Play Lume
 
-Download APK : https://drive.google.com/drive/folders/1BPnqDjLNaD9eOtu8DX104fWunU7tAg4S?usp=sharing
+Download APK/Windows msix : https://drive.google.com/drive/folders/1BPnqDjLNaD9eOtu8DX104fWunU7tAg4S?usp=sharing
+
+Play on web: https://play-lume.web.app/
 
 Play Lume
 The Ultimate Digital Board Game Experience for Families.
