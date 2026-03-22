@@ -8,6 +8,9 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+// On a phone, this will be 2. On a tablet, it could be 4.
+    int columns = screenWidth > 600 ? 4 : 2;
     return Scaffold(
       backgroundColor: const Color(0xFF04060E),
       body: Stack(
@@ -36,9 +39,12 @@ class HomeScreen extends StatelessWidget {
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2, mainAxisSpacing: 16, crossAxisSpacing: 16, childAspectRatio: 0.85,
-                    ),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns, // Use the dynamic variable
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 0.85, // Adjust this to keep cards from getting too tall
+                  ),
                     delegate: SliverChildListDelegate([
                       // ONLINE GAMES
                       _buildGameCard(context, "SYNC GAME", "Think as One", Icons.sync, Colors.blue, true, '/play/sync'),

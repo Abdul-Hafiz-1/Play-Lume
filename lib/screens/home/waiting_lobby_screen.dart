@@ -110,6 +110,8 @@ class _WaitingLobbyScreenState extends State<WaitingLobbyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+  int crossAxisCount = (screenWidth / 160).floor().clamp(2, 6);
     return Scaffold(
       backgroundColor: const Color(0xFF04060E),
       body: Stack(
@@ -158,13 +160,13 @@ class _WaitingLobbyScreenState extends State<WaitingLobbyScreen> {
 
                     Expanded(
                       child: GridView.builder(
-                        padding: const EdgeInsets.all(24),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 16,
-                          crossAxisSpacing: 16,
-                          childAspectRatio: 1.1,
-                        ),
+                      padding: const EdgeInsets.all(24),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount, // Use the dynamic variable here
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        childAspectRatio: 1.0, // Keeps the tiles square
+                      ),
                         itemCount: players.length,
                         itemBuilder: (context, index) {
                           final player = players[index] as Map<String, dynamic>;
