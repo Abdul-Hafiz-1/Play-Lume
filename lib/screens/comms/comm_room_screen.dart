@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
-import 'dart:ui';
 import '../../services/voice_service.dart';
-import '../../services/firebase_service.dart';
 
 class CommRoomScreen extends StatefulWidget {
   final String roomCode;
@@ -16,237 +12,141 @@ class CommRoomScreen extends StatefulWidget {
 }
 
 class _CommRoomScreenState extends State<CommRoomScreen> {
-  bool _isRoomActive = false;
-  bool _isConnecting = false;
+  bool _isJoined = false;
+  bool _loading = false;
 
-  // lib/screens/comms/comm_room_screen.dart
+  // The Floating Overlay Entry
+  static OverlayEntry? _floatingMicEntry;
 
-// lib/screens/comms/comm_room_screen.dart
+  void _showFloatingMic(BuildContext context) {
+    // Prevent duplicate overlays
+    _floatingMicEntry?.remove();
+    
+    // Starting position
+    Offset position = const Offset(20, 100);
 
-Future<void> _initializeLink() async {
-  setState(() => _isConnecting = true);
-  
-  // 🖐️ PHYSICAL GESTURE: Triggering haptic helps "prime" the browser
-  HapticFeedback.mediumImpact(); 
+    _floatingMicEntry = OverlayEntry(
+      builder: (context) => _FloatingPTT(
+        initialPosition: position,
+        onDispose: () => _floatingMicEntry = null,
+      ),
+    );
 
-  // --- Permission Handling ---
-  if (await Permission.microphone.request().isDenied) {
-    debugPrint("❌ Microphone Permission Denied.");
-    if (mounted) setState(() => _isConnecting = false);
-    // You should show a dialog to the user here explaining why the permission is needed.
-    return;
+    Overlay.of(context).insert(_floatingMicEntry!);
   }
 
-  try {
-    // 1. Setup Engine & Handlers
+  Future<void> _connect() async {
+    setState(() => _loading = true);
     await voiceService.initVoice(RtcEngineEventHandler(
       onJoinChannelSuccess: (connection, elapsed) {
-        debugPrint("✅ Agora: Joined Successfully");
-        if (mounted) {
-          setState(() {
-            _isRoomActive = true;
-            _isConnecting = false;
-          });
-        }
-      },
-      onRemoteAudioStateChanged: (connection, remoteUid, state, reason, elapsed) {
-        if (state == RemoteAudioState.remoteAudioStateDecoding) {
-          debugPrint("🔊 Receiving Audio from: $remoteUid");
-        }
+        if (mounted) setState(() { _isJoined = true; _loading = false; });
       },
       onError: (err, msg) {
-        debugPrint("❌ Agora Error: $err");
-        if (mounted) setState(() => _isConnecting = false);
-      }
+        if (mounted) setState(() => _loading = false);
+      },
     ));
-
-    // 2. JOIN AGORA IMMEDIATELY
-    // Do not put 'await' for Firestore here, do Agora FIRST
     await voiceService.joinRoom(widget.roomCode);
-    
-    // 3. Register in Database (Background task)
-    firebaseService.joinCommRoom(widget.roomCode).then((_) {
-      debugPrint("✅ Firestore: Player Registered");
-    });
-
-  } catch (e) {
-    debugPrint("Link Error: $e");
-    if (mounted) setState(() => _isConnecting = false);
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF04060E),
-      body: Stack(
-        children: [
-          _buildGlow(),
-          SafeArea(
-            child: Column(
-              children: [
-                _buildTopBar(),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 400),
-                    child: _isRoomActive ? _buildDashboard() : _buildSetup(),
-                  ),
-                ),
-                _buildBottomActions(),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-          if (_isConnecting) _buildLoadingOverlay(),
-        ],
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (!_isJoined) ...[
+              const Icon(Icons.settings_input_antenna, color: Colors.white24, size: 80),
+              const SizedBox(height: 20),
+              Text(widget.roomCode, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 40),
+              ElevatedButton(
+                onPressed: _loading ? null : _connect,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, minimumSize: const Size(200, 50)),
+                child: Text(_loading ? "CONNECTING..." : "ESTABLISH LINK"),
+              ),
+            ] else ...[
+              const Icon(Icons.verified_user, color: Colors.cyanAccent, size: 80),
+              const SizedBox(height: 10),
+              const Text("LINK SECURE", style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 40),
+              ElevatedButton(
+                onPressed: () {
+                  _showFloatingMic(context);
+                  // Go back to the game lobby/screen
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent),
+                child: const Text("LAUNCH FLOATING MIC", style: TextStyle(color: Colors.black)),
+              ),
+            ]
+          ],
+        ),
       ),
     );
   }
-
-  Widget _buildDashboard() {
-  return Column(
-    key: const ValueKey("dashboard"),
-    children: [
-      const Icon(Icons.verified_user, color: Colors.greenAccent, size: 60),
-      const Text("COMMS ENCRYPTED", style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, letterSpacing: 2)),
-      const SizedBox(height: 30),
-      Expanded(
-        child: StreamBuilder(
-          stream: firebaseService.getRoomStream(widget.roomCode),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const Center(child: Text("LINKING...", style: TextStyle(color: Colors.white24)));
-            }
-
-            final players = List.from(snapshot.data!.get('players') ?? []);
-
-            return ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              itemCount: players.length,
-              itemBuilder: (context, i) {
-                final player = players[i] as Map<String, dynamic>;
-                final bool isMe = player['userId'] == firebaseService.userId;
-
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: isMe ? Colors.blueAccent : Colors.white10,
-                    child: const Icon(Icons.person, size: 16, color: Colors.white),
-                  ),
-                  title: Text(player['nickname'] ?? "Unknown", style: const TextStyle(color: Colors.white)),
-                  trailing: isMe ? null : const Icon(Icons.graphic_eq, color: Colors.greenAccent, size: 18),
-                );
-              },
-            );
-          },
-        ),
-      ),
-    ],
-  );
 }
 
-  Widget _buildSetup() {
-    return Column(
-      key: const ValueKey("setup"),
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
-          child: QrImageView(data: widget.roomCode, size: 200.0),
-        ),
-        const SizedBox(height: 30),
-        Text("${widget.roomCode.substring(0, 4)} ${widget.roomCode.substring(4, 8)}",
-            style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: 8)),
-      ],
-    );
+// Separate Widget for the Floating Draggable Button
+class _FloatingPTT extends StatefulWidget {
+  final Offset initialPosition;
+  final VoidCallback onDispose;
+  const _FloatingPTT({required this.initialPosition, required this.onDispose});
+
+  @override
+  State<_FloatingPTT> createState() => _FloatingPTTState();
+}
+
+class _FloatingPTTState extends State<_FloatingPTT> {
+  late Offset pos;
+
+  @override
+  void initState() {
+    super.initState();
+    pos = widget.initialPosition;
   }
 
-  Widget _buildBottomActions() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: _isRoomActive 
-      ? Row(children: [
-          Expanded(child: _btn("EXIT", Colors.redAccent.withOpacity(0.1), Colors.redAccent, () {
-            voiceService.leaveRoom();
-            Navigator.pop(context);
-          })),
-          const SizedBox(width: 20),
-          Expanded(child: _btn("PLAY", Colors.blueAccent, Colors.white, () {
-            _showFloatingMicOverlay(context);
-            Navigator.pop(context); 
-          })),
-        ])
-      : _btn("INITIALIZE ENCRYPTED LINK", Colors.blueAccent, Colors.white, _initializeLink),
-    );
-  }
-
-  Widget _btn(String label, Color color, Color textColor, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 60,
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
-        child: Center(child: Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, letterSpacing: 1))),
-      ),
-    );
-  }
-
-  Widget _buildTopBar() => Padding(
-    padding: const EdgeInsets.all(24.0),
-    child: Row(children: [
-      const Icon(Icons.wifi_tethering, color: Colors.blueAccent),
-      const SizedBox(width: 12),
-      const Text("COMMS HQ", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-    ]),
-  );
-
-  Widget _buildLoadingOverlay() => Container(
-    color: Colors.black87,
-    child: const Center(child: CircularProgressIndicator(color: Colors.blueAccent)),
-  );
-
-  Widget _buildGlow() => Positioned(top: 100, left: 100, child: Container(width: 200, height: 200, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.blue.withOpacity(0.1), boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.1), blurRadius: 100)])));
-
-  void _showFloatingMicOverlay(BuildContext context) {
-    OverlayEntry? entry;
-    Offset position = const Offset(20, 100);
-    bool isTalking = false;
-
-    entry = OverlayEntry(
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateOverlay) {
-          return Positioned(
-            right: position.dx,
-            bottom: position.dy,
-            child: Draggable(
-              feedback: _micIcon(isTalking),
-              childWhenDragging: const SizedBox.shrink(),
-              onDragEnd: (details) {
-                setStateOverlay(() {
-                  double h = MediaQuery.of(context).size.height;
-                  double w = MediaQuery.of(context).size.width;
-                  position = Offset((w - details.offset.dx - 75).clamp(20, w - 100), (h - details.offset.dy - 75).clamp(20, h - 100));
-                });
-              },
-              child: GestureDetector(
-                onLongPressStart: (_) { setStateOverlay(() => isTalking = true); voiceService.setMicActive(true); },
-                onLongPressEnd: (_) { setStateOverlay(() => isTalking = false); voiceService.setMicActive(false); },
-                child: _micIcon(isTalking),
-              ),
-            ),
-          );
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: pos.dx,
+      top: pos.dy,
+      child: Draggable(
+        feedback: _micWidget(true),
+        childWhenDragging: Container(),
+        onDragEnd: (details) {
+          setState(() => pos = details.offset);
         },
+        child: GestureDetector(
+          onLongPressStart: (_) {
+            HapticFeedback.mediumImpact();
+            voiceService.setMicActive(true);
+          },
+          onLongPressEnd: (_) {
+            voiceService.setMicActive(false);
+          },
+          child: ValueListenableBuilder<bool>(
+            valueListenable: voiceService.isTalking,
+            builder: (context, talking, _) => _micWidget(talking),
+          ),
+        ),
       ),
     );
-    Overlay.of(context).insert(entry);
   }
 
-  Widget _micIcon(bool talking) {
+  Widget _micWidget(bool talking) {
     return Material(
       color: Colors.transparent,
       child: Container(
-        width: 75, height: 75,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: talking ? Colors.redAccent : Colors.blueAccent, boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 10)]),
+        width: 70,
+        height: 70,
+        decoration: BoxDecoration(
+          color: talking ? Colors.redAccent : Colors.blueAccent.withOpacity(0.8),
+          shape: BoxShape.circle,
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, spreadRadius: 2)],
+          border: Border.all(color: Colors.white24, width: 2),
+        ),
         child: Icon(talking ? Icons.mic : Icons.mic_none, color: Colors.white, size: 30),
       ),
     );
