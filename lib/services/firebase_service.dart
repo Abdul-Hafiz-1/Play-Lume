@@ -940,6 +940,39 @@ Future<void> kickPlayer(String roomCode, String userIdToKick) async {
   // FIX: Added {int totalRounds = 5} as a named parameter
 
 
+// Add this to FirebaseService class
+// lib/services/firebase_service.dart
+
+// lib/services/firebase_service.dart
+
+Future<void> joinCommRoom(String roomCode) async {
+  if (userId == null) {
+    debugPrint("Firebase: Cannot join comms, userId is null");
+    return;
+  }
+  
+  final roomRef = _firestore.collection('rooms').doc(roomCode);
+  
+  try {
+    // We use a transaction or a merge set to add the player
+    await roomRef.set({
+      'status': 'comms_active',
+      'lastUpdate': FieldValue.serverTimestamp(),
+      'players': FieldValue.arrayUnion([
+        {
+          'userId': userId,
+          'nickname': nickname ?? "Operative",
+          'isTalking': false,
+          'joinedAt': DateTime.now().toIso8601String(),
+        }
+      ])
+    }, SetOptions(merge: true));
+    debugPrint("Firebase: Successfully checked into room $roomCode");
+  } catch (e) {
+    debugPrint("Firebase Error joining comm room: $e");
+    rethrow;
+  }
+}
   // 1. Rename the parameter to hostChosenRounds to avoid shadowing/conflicts
 Future<void> startGame(String roomCode, String gameId, {int hostChosenRounds = 5}) async {
   if (userId == null) return;

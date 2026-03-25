@@ -9,6 +9,7 @@ import 'screens/home/home_screen.dart';
 import 'screens/home/game_selection_lobby.dart';
 import 'screens/home/waiting_lobby_screen.dart';
 import 'screens/home/pass_and_play_setup_screen.dart';
+import 'screens/comms/comm_room_screen.dart'; // 🎙️ New Import for Comms
 
 // THE ONLY GAME IMPORT YOU NEED
 import 'screens/games/all_games.dart';
@@ -41,19 +42,19 @@ class PlayLumeApp extends StatelessWidget {
       },
 
       onGenerateRoute: (settings) {
-        // Dynamic Home Route
+        // 1. Dynamic Home Route
         if (settings.name == '/home') {
           final nickname = settings.arguments as String? ?? "Guest";
           return MaterialPageRoute(builder: (_) => HomeScreen(nickname: nickname));
         }
 
-        // Dynamic Lobby Route
+        // 2. Dynamic Lobby Route
         if (settings.name == '/game_lobby') {
           final game = settings.arguments as Game?;
           return MaterialPageRoute(builder: (_) => game != null ? GameSelectionLobbyScreen(game: game) : const NicknameScreen());
         }
 
-        // Dynamic Waiting Lobby
+        // 3. Dynamic Waiting Lobby
         if (settings.name == '/waiting_lobby') {
           final args = settings.arguments as Map<String, dynamic>?;
           return MaterialPageRoute(builder: (_) => WaitingLobbyScreen(
@@ -63,8 +64,18 @@ class PlayLumeApp extends StatelessWidget {
           ));
         }
 
-        // --- THE UNIVERSAL GAME ROUTER ---
-        if (settings.name!.startsWith('/play/')) {
+        // 4. --- 🎙️ COMMUNICATION ROOM ROUTE ---
+        if (settings.name == '/comm_room') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          return MaterialPageRoute(
+            builder: (_) => CommRoomScreen(
+              roomCode: args?['roomCode']?.toString() ?? "000000",
+            ),
+          );
+        }
+
+        // 5. --- THE UNIVERSAL GAME ROUTER ---
+        if (settings.name != null && settings.name!.startsWith('/play/')) {
           final String gameKey = settings.name!.replaceFirst('/play/', '');
           final Map<String, dynamic> args = (settings.arguments as Map<String, dynamic>?) ?? {};
 
