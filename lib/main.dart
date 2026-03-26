@@ -74,15 +74,23 @@ class PlayLumeApp extends StatelessWidget {
           );
         }
 
-        // 5. --- THE UNIVERSAL GAME ROUTER ---
-        if (settings.name != null && settings.name!.startsWith('/play/')) {
-          final String gameKey = settings.name!.replaceFirst('/play/', '');
-          final Map<String, dynamic> args = (settings.arguments as Map<String, dynamic>?) ?? {};
-
+        if (settings.name == '/setup/pass_and_play') {
+          final game = settings.arguments as Game; // This extracts the 'Game' object you sent
           return MaterialPageRoute(
-            builder: (context) => GameFactory.build(gameKey, args),
+            builder: (_) => PassAndPlaySetupScreen(game: game),
           );
         }
+
+        // 5. --- THE UNIVERSAL GAME ROUTER ---
+        // Example of how your router should handle the two formats
+          if (settings.name!.startsWith('/play/')) {
+            final gameKey = settings.name!.replaceFirst('/play/', '');
+            final args = settings.arguments as Map<String, dynamic>;
+
+            return MaterialPageRoute(
+              builder: (context) => GameFactory.build(gameKey, args),
+            );
+          }
 
         return null;
       },

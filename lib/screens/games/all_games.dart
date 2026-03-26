@@ -12,6 +12,7 @@ export 'spy_screen.dart';
 export 'undercover_screen.dart';
 export 'informant_screen.dart';
 export 'dont_get_caught_screen.dart';
+export 'heads_up_game_screen.dart';
 // export 'clocktower_screen.dart'; // Uncomment once you create the file!
 
 // --- STEP 2: THE FACTORY ---
@@ -20,10 +21,12 @@ import 'all_games.dart';
 
 class GameFactory {
   static Widget build(String key, Map<String, dynamic> args) {
+    final List<String> p = args['players'] is List 
+        ? List<String>.from(args['players']) 
+        : [];
     final String rc = args['roomCode']?.toString() ?? "";
     final String gi = args['gameId']?.toString() ?? key;
     final bool ih = args['isHost'] ?? false;
-    final List<String> p = List<String>.from(args['players'] ?? []);
 
     switch (key) {
       // ONLINE GAMES
@@ -53,6 +56,9 @@ class GameFactory {
         return InformantScreen(players: p);
       case 'dont_get_caught':
         return DontGetCaughtScreen(players: p);
+      case 'heads_up':
+        final List<String> p = args['players'] is List ? List<String>.from(args['players']) : [];
+        return HeadsUpGameScreen(players: p);
 
       default:
         return Scaffold(
