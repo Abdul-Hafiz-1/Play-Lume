@@ -8,15 +8,24 @@ class VoiceService {
   final ValueNotifier<bool> isTalking = ValueNotifier(false);
   final ValueNotifier<String> status = ValueNotifier("OFFLINE");
 
+  // This helper function handles the speaker safely
+  Future<void> _enableSpeakerSafe() async {
+    try {
+      if (_engine != null) {
+        await _engine!.setEnableSpeakerphone(true);
+      }
+    } catch (e) {
+      debugPrint("Speaker toggle skipped: $e");
+    }
+  }
+
   Future<void> initVoice(RtcEngineEventHandler handler) async {
     try {
-      // NUCLEAR STEP: If engine exists, kill it and wait for it to die.
       if (_engine != null) {
         status.value = "PURGING ENGINE...";
         await _engine!.leaveChannel();
         await _engine!.release();
         _engine = null;
-        // Small delay to allow the native layer to clear memory
         await Future.delayed(const Duration(milliseconds: 500));
       }
 
@@ -30,7 +39,9 @@ class VoiceService {
       _engine!.registerEventHandler(handler);
       await _engine!.enableAudio();
       
-      // Start in Muted (PTT) state
+      // Call speaker fix with a tiny delay so it doesn't block the init process
+      Future.delayed(const Duration(milliseconds: 100), () => _enableSpeakerSafe());
+      
       await _engine!.muteLocalAudioStream(true);
       
       status.value = "READY";
@@ -44,8 +55,11 @@ class VoiceService {
     if (_engine == null) return;
     try {
       status.value = "ESTABLISHING UPLINK...";
+      
+      await _enableSpeakerSafe();
+
       await _engine!.joinChannel(
-        token: "", // ⚠️ Verify Agora Console has App Certificate DISABLED
+        token: "", 
         channelId: roomName,
         uid: 0, 
         options: const ChannelMediaOptions(
@@ -54,6 +68,10 @@ class VoiceService {
           autoSubscribeAudio: true,
         ),
       );
+
+      // Force it again after the connection is stable
+      Future.delayed(const Duration(milliseconds: 500), () => _enableSpeakerSafe());
+
     } catch (e) {
       status.value = "JOIN_ERR: $e";
       print("❌ Join Error: $e");
