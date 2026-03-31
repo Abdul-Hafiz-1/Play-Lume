@@ -111,4 +111,13 @@ final List<Game> games = [
   selectionLobbyRouteName: '/setup/pass_and_play',
   actualGameRouteName: '/play/glitch',
   ),
+  Game(
+  id: 'mafia',
+  name: "Mafia",
+  description: "Identify the Mafia before they take over the town! A game of secrets and betrayal.",
+  imageAsset: 'assets/images/mafia.png',
+  isOnline: false, // Starting with Pass-and-Play
+  selectionLobbyRouteName: '/setup/pass_and_play',
+  actualGameRouteName: '/play/mafia',
+),
 ];

@@ -104,6 +104,7 @@ class HomeScreen extends StatelessWidget {
 
                       // LOCAL GAMES
                       _buildGameCard(context, "THE GLITCH", "Find the Corruption", Icons.bug_report, Colors.red, false, '/play/glitch'),
+                      _buildGameCard(context, "MAFIA", "Secrets & Betrayal", Icons.security, Colors.redAccent, false, '/play/mafia'),
                       _buildGameCard(context, "HEADS UP", "Forehead Guessing", Icons.smartphone, Colors.blue, false, '/play/heads_up'),
                       _buildGameCard(context, "INTERROGATION", "Detective vs Suspect", Icons.mic, Colors.indigo, false, '/play/interrogation'),
                       _buildGameCard(context, "SPY", "Undercover Mission", Icons.search, Colors.amber, false, '/play/spy'),

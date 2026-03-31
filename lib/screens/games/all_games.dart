@@ -13,6 +13,7 @@ export 'undercover_screen.dart';
 export 'informant_screen.dart';
 export 'dont_get_caught_screen.dart';
 export 'heads_up_game_screen.dart';
+export 'mafia_game_screen.dart';
 // export 'clocktower_screen.dart'; // Uncomment once you create the file!
 
 // --- STEP 2: THE FACTORY ---
@@ -59,6 +60,11 @@ class GameFactory {
       case 'heads_up':
         final List<String> p = args['players'] is List ? List<String>.from(args['players']) : [];
         return HeadsUpGameScreen(players: p);
+      case 'mafia':
+        final List<String> p = args['players'] is List 
+            ? List<String>.from(args['players']) 
+            : [];
+        return MafiaGameScreen(players: p);
 
       default:
         return Scaffold(
