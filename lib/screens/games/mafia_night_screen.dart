@@ -176,7 +176,7 @@ class _MafiaNightScreenState extends State<MafiaNightScreen> with TickerProvider
                   },
                   blendMode: BlendMode.dstIn,
                   child: Image.asset(
-                    'lib/assets/images/tactical_map.jpg', 
+                    'lib/assets/tactical_map.jpg', 
                     fit: BoxFit.cover,
                     opacity: const AlwaysStoppedAnimation(0.5),
                     errorBuilder: (context, error, stackTrace) => Container(color: Colors.transparent),
@@ -190,7 +190,7 @@ class _MafiaNightScreenState extends State<MafiaNightScreen> with TickerProvider
               // 💎 FROSTED GLASS LAYER
               Positioned.fill(
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                   child: Container(color: Colors.black.withOpacity(0.4)),
                 ),
               ),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:play_lumee/screens/games/mafia_result_screen.dart';
 import '../../logic/mafia_engine.dart';
 import 'mafia_day_sceen.dart'; // Ensure filename matches exactly
 
@@ -88,7 +89,7 @@ class _MafiaMorningScreenState extends State<MafiaMorningScreen> with TickerProv
     // If EVERYONE was saved (and targets existed), show the Miracle.
     String imageAsset = 'assets/murder_scene.jpg';
     if (_killedPlayers.isEmpty && _anySaved) {
-      imageAsset = 'assets/medical_miracle.jpg';
+      imageAsset = 'assets/hospital_save.jpg';
     } else if (_killedPlayers.isEmpty && !_anySaved) {
       // Default foggy morning if no actions were taken
       imageAsset = 'assets/morning_mist.jpg'; 
@@ -203,8 +204,13 @@ class _MafiaMorningScreenState extends State<MafiaMorningScreen> with TickerProv
             widget.session.lastDoctorTarget = null;
             
             if (_winner != null) {
-              Navigator.pop(context); 
-            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MafiaResultScreen(winner: _winner!, session: widget.session),
+                ),
+              );
+            }else {
               Navigator.pushReplacement(context, MaterialPageRoute(
                 builder: (context) => MafiaDayScreen(session: widget.session)
               ));
