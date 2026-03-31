@@ -29,7 +29,7 @@ class _MafiaNightScreenState extends State<MafiaNightScreen> with TickerProvider
     _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
     
     // Clear last night's temporary targets at start of new night
-    widget.session.lastMafiaTarget = null;
+    widget.session.lastMafiaTargets.clear();
     widget.session.lastDoctorTarget = null;
     widget.session.lastDetectiveTarget = null;
   }
@@ -39,7 +39,9 @@ class _MafiaNightScreenState extends State<MafiaNightScreen> with TickerProvider
     String role = widget.session.roles[name]!;
 
     setState(() {
-      if (role == "MAFIA") widget.session.lastMafiaTarget = target;
+      if (role == "MAFIA" && target != null) {
+        widget.session.lastMafiaTargets.add(target);
+      }
       if (role == "DOCTOR") {
         if (target == name) widget.session.doctorHasSelfSaved = true;
         widget.session.lastDoctorTarget = target;
@@ -205,6 +207,11 @@ class _MafiaNightScreenState extends State<MafiaNightScreen> with TickerProvider
                     Container(height: 1, color: color.withOpacity(0.2)),
                     const SizedBox(height: 25),
                     
+                    if (role == "DETECTIVE") ...[
+                      _buildIntelLog(),
+                      const SizedBox(height: 15),
+                    ],
+
                     if (_showDetectiveResult) 
                       _buildDetectiveHUD(color)
                     else 
@@ -219,7 +226,43 @@ class _MafiaNightScreenState extends State<MafiaNightScreen> with TickerProvider
     );
   }
 
+  Widget _buildIntelLog() {
+    if (widget.session.detectiveIntel.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.cyan.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.cyan.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("PREVIOUS INTEL", style: TextStyle(color: Colors.cyan, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          ...widget.session.detectiveIntel.entries.map((e) => Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(e.key.toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(e.value ? "GUILTY" : "INNOCENT", 
+                  style: TextStyle(color: e.value ? Colors.redAccent : Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          )).toList(),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInteractiveList(String name, String role, Color color, bool isPassive) {
+    final legalTargets = widget.session.survivors.where((p) {
+      if (role == "MAFIA" && p == name) return false; 
+      return true;
+    }).toList();
+
     return Expanded(
       child: Column(
         children: [
@@ -229,16 +272,13 @@ class _MafiaNightScreenState extends State<MafiaNightScreen> with TickerProvider
           Expanded(
             child: ListView(
               physics: const BouncingScrollPhysics(),
-              children: widget.session.survivors.map((p) {
+              children: legalTargets.map((p) {
                 bool isSelf = p == name;
                 bool disabled = (role == "DOCTOR" && isSelf && widget.session.doctorHasSelfSaved);
                 
                 return _buildGlassTile(p, color, disabled, () {
                   if (role == "DETECTIVE") {
-                    setState(() {
-                      widget.session.lastDetectiveTarget = p;
-                      _showDetectiveResult = true;
-                    });
+                    _checkDetectiveTarget(p);
                   } else {
                     _submitAction(isPassive ? null : p);
                   }
@@ -253,6 +293,15 @@ class _MafiaNightScreenState extends State<MafiaNightScreen> with TickerProvider
         ],
       ),
     );
+  }
+
+  void _checkDetectiveTarget(String target) {
+    bool isMafia = widget.session.roles[target] == "MAFIA";
+    setState(() {
+      widget.session.detectiveIntel[target] = isMafia;
+      widget.session.lastDetectiveTarget = target;
+      _showDetectiveResult = true;
+    });
   }
 
   Widget _buildScanlineOverlay() {
@@ -276,7 +325,7 @@ class _MafiaNightScreenState extends State<MafiaNightScreen> with TickerProvider
 
   Widget _buildDetectiveHUD(Color color) {
     String target = widget.session.lastDetectiveTarget!;
-    bool isMafia = widget.session.roles[target] == "MAFIA";
+    bool isMafia = widget.session.detectiveIntel[target]!;
     return Column(
       children: [
         const Text("INTEL ACQUIRED", style: TextStyle(color: Colors.white24, letterSpacing: 4)),

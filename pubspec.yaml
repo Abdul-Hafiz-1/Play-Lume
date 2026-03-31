@@ -105,6 +105,10 @@ flutter:
     - assets/Jester.jpg
     - assets/morning_mist.jpg
     - assets/tacticle_map.jpg
+    - assets/morning_mist.jpg
+    - assets/hospital_save.jpg 
+    - assets/murder_scene.jpg
+    - assets/town_hall.jpg
 
   # To add assets to your application, add an assets section, like this:
   # assets:
