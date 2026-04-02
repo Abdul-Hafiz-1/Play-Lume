@@ -14,6 +14,8 @@ export 'informant_screen.dart';
 export 'dont_get_caught_screen.dart';
 export 'heads_up_game_screen.dart';
 export 'mafia_game_screen.dart';
+export 'sync_local.dart';
+export 'guess_the_liar_local.dart';
 // export 'clocktower_screen.dart'; // Uncomment once you create the file!
 
 // --- STEP 2: THE FACTORY ---
@@ -27,13 +29,22 @@ class GameFactory {
         : [];
     final String rc = args['roomCode']?.toString() ?? "";
     final String gi = args['gameId']?.toString() ?? key;
-    final bool ih = args['isHost'] ?? false;
 
     switch (key) {
       // ONLINE GAMES
+      case 'sync':
       case 'sync_game':
+        if (p.isNotEmpty) {
+          // If players exist, launch the Local version
+          return LocalSyncGameScreen(players: p);
+        }
+        // Otherwise, launch the Online version
         return SyncGameScreen(roomCode: rc, gameId: gi);
       case 'guess_the_liar':
+        if (p.isNotEmpty) {
+            // If players exist, launch the Local version
+            return LocalGuessTheLiarScreen(players: p);
+          }
         return GuessTheLiarGameScreen(roomCode: rc, gameId: gi);
       case 'most_likely_to':
         return MostLikelyToScreen(roomCode: rc, gameId: gi);

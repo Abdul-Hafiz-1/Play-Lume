@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Added for HapticFeedback
+import 'package:play_lumee/screens/home/game_briefing_screen.dart';
 import 'dart:ui';
 import '../../models/game_model.dart';
 
@@ -231,51 +232,60 @@ Widget _buildActionBtn(BuildContext context, String label, IconData icon, VoidCa
       );
     }
   
-    Widget _buildGameCard(BuildContext context, String title, String subtitle, IconData icon, Color accentColor, bool isOnline, String playRoute) {
-      return GestureDetector(
-        onTap: () {
-          final game = Game(
-            id: title.toLowerCase().replaceAll(' ', '_'),
-            name: title,
-            description: subtitle,
-            imageAsset: '',
-            isOnline: isOnline,
-            selectionLobbyRouteName: isOnline ? '/game_lobby' : '/setup/pass_and_play',
-            actualGameRouteName: playRoute,
-          );
-  
-          Navigator.pushNamed(context, game.selectionLobbyRouteName, arguments: game);
-        },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03), 
-              borderRadius: BorderRadius.circular(28), 
-              border: Border.all(color: Colors.white.withOpacity(0.08), width: 1.5)
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12), 
-                    decoration: BoxDecoration(color: accentColor.withOpacity(0.15), shape: BoxShape.circle), 
-                    child: Icon(icon, color: accentColor, size: 28)
-                  ),
-                  const Spacer(),
-                  Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10)),
-                ],
-              ),
+  Widget _buildGameCard(BuildContext context, String title, String subtitle, IconData icon, Color accentColor, bool isOnline, String playRoute) {
+  return GestureDetector(
+    onTap: () {
+      // 1. Create the Game object manually from the parameters available here
+      final Game gameToPass = Game(
+        id: title.toLowerCase().replaceAll(' ', '_'),
+        name: title,
+        description: subtitle,
+        instructions: "Protocol initiated for $title. Secure line established.",
+        imageAsset: 'assets/${title.toLowerCase().replaceAll(' ', '_')}_banner.jpg',
+        isOnline: isOnline,
+        selectionLobbyRouteName: isOnline ? '/game_lobby' : '/setup/pass_and_play',
+        actualGameRouteName: playRoute,
+      );
+
+      // 2. Pass the object DIRECTLY to the constructor
+      // DO NOT use arguments: {'game': game} as that creates the Map that causes your error
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GameBriefingScreen(game: gameToPass),
+        ),
+      );
+    },
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.03), 
+            borderRadius: BorderRadius.circular(28), 
+            border: Border.all(color: Colors.white.withOpacity(0.08), width: 1.5)
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12), 
+                  decoration: BoxDecoration(color: accentColor.withOpacity(0.15), shape: BoxShape.circle), 
+                  child: Icon(icon, color: accentColor, size: 28)
+                ),
+                const Spacer(),
+                Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 4),
+                Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10)),
+              ],
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -358,25 +358,26 @@ Widget _buildRoundPicker() {
       padding: const EdgeInsets.all(32.0),
       child: widget.isHost
           ? ElevatedButton(
-              onPressed: _isStarting ? null : () async { // Disable button if already starting
-  setState(() => _isStarting = true);
-                print("DEBUG: Initialize Button Pressed!");
-                HapticFeedback.mediumImpact();
-                await firebaseService.startGame(widget.roomCode, widget.gameId, hostChosenRounds: _selectedRounds);
+              onPressed: _isStarting ? null : () async {
+              setState(() => _isStarting = true);
+              HapticFeedback.mediumImpact();
+              
+              try {
+                print("🚀 INITIALIZING: Room ${widget.roomCode} with $_selectedRounds rounds");
                 
-                if (firebaseService.userId == null) {
-                  print("DEBUG: Firebase userId is NULL!");
-                  return;
-                }
-
-                try {
-                  print("DEBUG: Calling startGame for room: ${widget.roomCode}");
-                  await firebaseService.startGame(widget.roomCode, widget.gameId);
-                  print("DEBUG: startGame execution finished.");
-                } catch (e) {
-                  print("DEBUG: Catch block caught: $e");
-                }
-              },
+                // ONLY CALL THIS ONCE and pass the rounds variable
+                await firebaseService.startGame(
+                  widget.roomCode, 
+                  widget.gameId, 
+                  hostChosenRounds: _selectedRounds
+                );
+                
+                print("✅ START_GAME command sent successfully.");
+              } catch (e) {
+                print("❌ LOBBY_ERROR: $e");
+                if (mounted) setState(() => _isStarting = false);
+              }
+            },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3B82F6),
                 minimumSize: const Size(double.infinity, 64),

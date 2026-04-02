@@ -112,6 +112,22 @@ flutter:
     - assets/mafia_win.jpg
     - assets/town_win.jpg
     - assets/jester_win.jpg
+    - assets/mafia_banner.jpg
+    - assets/spy_banner.jpg
+    - assets/informant_banner.jpg
+    - assets/undercover_banner.jpg
+    - assets/dont_get_me_started_banner.jpg
+    - assets/interrogation_banner.jpg
+    - assets/guess_the_liar_banner.jpg
+    - assets/the_glitch_banner.jpg
+    - assets/most_likely_to_banner.jpg
+    - assets/heads_up_banner.jpg
+    - assets/dont_get_caught_banner.jpg
+    - assets/sync_game_banner.jpg
+
+
+
+
 
 
 
@@ -131,6 +147,7 @@ msix_config:
   capabilities: internetClient, location, microphone
   architecture: x64
   install_certificate: true
+  msix_version: 2.4.0.0
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

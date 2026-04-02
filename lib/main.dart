@@ -9,7 +9,7 @@ import 'screens/home/home_screen.dart';
 import 'screens/home/game_selection_lobby.dart';
 import 'screens/home/waiting_lobby_screen.dart';
 import 'screens/home/pass_and_play_setup_screen.dart';
-import 'screens/comms/comm_room_screen.dart'; // 🎙️ New Import for Comms
+import 'screens/comms/comm_room_screen.dart'; 
 
 // THE ONLY GAME IMPORT YOU NEED
 import 'screens/games/all_games.dart';
@@ -36,7 +36,6 @@ class PlayLumeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/', 
       
-      // Static routes for core screens
       routes: {
         '/': (context) => const NicknameScreen(),
       },
@@ -48,10 +47,21 @@ class PlayLumeApp extends StatelessWidget {
           return MaterialPageRoute(builder: (_) => HomeScreen(nickname: nickname));
         }
 
-        // 2. Dynamic Lobby Route
+        // 2. Dynamic Lobby Route (DEFENSIVE FIX)
         if (settings.name == '/game_lobby') {
-          final game = settings.arguments as Game?;
-          return MaterialPageRoute(builder: (_) => game != null ? GameSelectionLobbyScreen(game: game) : const NicknameScreen());
+          Game? game;
+          if (settings.arguments is Game) {
+            game = settings.arguments as Game;
+          } else if (settings.arguments is Map<String, dynamic>) {
+            final args = settings.arguments as Map<String, dynamic>;
+            game = args['game'] as Game?;
+          }
+          
+          return MaterialPageRoute(
+            builder: (_) => game != null 
+                ? GameSelectionLobbyScreen(game: game) 
+                : const NicknameScreen(),
+          );
         }
 
         // 3. Dynamic Waiting Lobby
@@ -64,7 +74,7 @@ class PlayLumeApp extends StatelessWidget {
           ));
         }
 
-        // 4. --- 🎙️ COMMUNICATION ROOM ROUTE ---
+        // 4. Communication Room
         if (settings.name == '/comm_room') {
           final args = settings.arguments as Map<String, dynamic>?;
           return MaterialPageRoute(
@@ -74,23 +84,35 @@ class PlayLumeApp extends StatelessWidget {
           );
         }
 
+        // 5. Pass and Play Setup (DEFENSIVE FIX)
         if (settings.name == '/setup/pass_and_play') {
-          final game = settings.arguments as Game; // This extracts the 'Game' object you sent
+          Game? game;
+          if (settings.arguments is Game) {
+            game = settings.arguments as Game;
+          } else if (settings.arguments is Map<String, dynamic>) {
+            final args = settings.arguments as Map<String, dynamic>;
+            game = args['game'] as Game?;
+          }
+
           return MaterialPageRoute(
-            builder: (_) => PassAndPlaySetupScreen(game: game),
+            builder: (_) => game != null 
+                ? PassAndPlaySetupScreen(game: game) 
+                : const NicknameScreen(),
           );
         }
 
-        // 5. --- THE UNIVERSAL GAME ROUTER ---
-        // Example of how your router should handle the two formats
-          if (settings.name!.startsWith('/play/')) {
-            final gameKey = settings.name!.replaceFirst('/play/', '');
-            final args = settings.arguments as Map<String, dynamic>;
+        // 6. Universal Game Router
+        if (settings.name!.startsWith('/play/')) {
+          final gameKey = settings.name!.replaceFirst('/play/', '');
+          // Using a safe cast here
+          final args = settings.arguments is Map<String, dynamic> 
+              ? settings.arguments as Map<String, dynamic> 
+              : <String, dynamic>{};
 
-            return MaterialPageRoute(
-              builder: (context) => GameFactory.build(gameKey, args),
-            );
-          }
+          return MaterialPageRoute(
+            builder: (context) => GameFactory.build(gameKey, args),
+          );
+        }
 
         return null;
       },

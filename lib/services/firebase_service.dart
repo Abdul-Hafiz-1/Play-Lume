@@ -144,7 +144,7 @@ class FirebaseService {
   ];
 
   // --- GUESS THE LIAR QUESTIONS (ALL PRESERVED) ---
-  final List<QuestionPair> _guessTheLiarQuestionPairs = [
+  final List<QuestionPair> guessTheLiarQuestionPairs = [
     // --- DAILY HABITS & QUIRKS ---
     QuestionPair(original: "What’s the first thing you do when you wake up?", liar: "What’s the last thing you do before going to sleep?"),
     QuestionPair(original: "What’s a chore you actually find satisfying?", liar: "What’s a chore you would pay someone else to do?"),
@@ -838,8 +838,8 @@ Future<void> kickPlayer(String roomCode, String userIdToKick) async {
 
   void _assignRolesAndQuestionsGTL(DocumentSnapshot roomSnap, String gameId, Function(Map<String, dynamic>) onUpdate) {
     List<dynamic> playersList = List<dynamic>.from(roomSnap.get('players') ?? []);
-    int randomPairIndex = Random().nextInt(_guessTheLiarQuestionPairs.length);
-    QuestionPair selectedPair = _guessTheLiarQuestionPairs[randomPairIndex];
+    int randomPairIndex = Random().nextInt(guessTheLiarQuestionPairs.length);
+    QuestionPair selectedPair = guessTheLiarQuestionPairs[randomPairIndex];
     int liarIndex = Random().nextInt(playersList.length);
     List<Map<String, dynamic>> updatedPlayers = [];
 
