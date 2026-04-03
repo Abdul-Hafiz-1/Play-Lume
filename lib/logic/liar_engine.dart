@@ -1,14 +1,14 @@
 import 'dart:math';
 import '../models/question_model.dart';
 
-enum LiarPhase { setup, scanning, secret, pass, interrogation, voting, results }
+enum LiarPhase { setup, scanning, secret, pass, interrogation, voting, results, finalLeaderboard }
 
 class LiarEngine {
   final List<String> players;
   final List<QuestionPair> allQuestions;
   
   int currentRound = 1;
-  int totalRounds = 3;
+  int totalRounds = 3; 
   int currentPlayerIndex = 0;
   int liarIndex = 0;
   LiarPhase phase = LiarPhase.setup;
@@ -31,39 +31,40 @@ class LiarEngine {
     phase = LiarPhase.scanning;
   }
 
+  void calculatePoints() {
+    String liar = players[liarIndex];
+    Map<String, int> voteCounts = {};
+    for (var v in votes.values) voteCounts[v] = (voteCounts[v] ?? 0) + 1;
+
+    int votesAgainstLiar = voteCounts[liar] ?? 0;
+    bool caught = votesAgainstLiar > (players.length - 1) / 2;
+
+    if (caught) {
+      for (var p in players) {
+        if (p != liar) scores[p] = (scores[p] ?? 0) + 1;
+      }
+    } else {
+      scores[liar] = (scores[liar] ?? 0) + 1;
+    }
+  }
+
   void nextState() {
     switch (phase) {
-      case LiarPhase.scanning:
-        phase = LiarPhase.secret;
-        break;
+      case LiarPhase.scanning: phase = LiarPhase.secret; break;
       case LiarPhase.secret:
-        // After seeing the secret, we either pass to the next player or start discussing
-        if (currentPlayerIndex < players.length - 1) {
-          phase = LiarPhase.pass;
-        } else {
-          phase = LiarPhase.interrogation;
-        }
+        if (currentPlayerIndex < players.length - 1) phase = LiarPhase.pass;
+        else phase = LiarPhase.interrogation;
         break;
       case LiarPhase.pass:
-        // The index only increments here, when the new player confirms they have the device
         currentPlayerIndex++;
-        phase = LiarPhase.scanning;
+        phase = (playerAnswers.length < players.length) ? LiarPhase.scanning : LiarPhase.voting;
         break;
-      case LiarPhase.interrogation:
-        // Reset index for the voting loop
-        currentPlayerIndex = 0; 
-        phase = LiarPhase.voting; 
-        break;
+      case LiarPhase.interrogation: currentPlayerIndex = 0; phase = LiarPhase.voting; break;
       case LiarPhase.voting:
-        // After a vote is cast, we either move to the next voter's pass screen or show results
-        if (currentPlayerIndex < players.length - 1) {
-          phase = LiarPhase.pass; // Re-use pass screen for voting handover
-        } else {
-          phase = LiarPhase.results;
-        }
+        if (currentPlayerIndex < players.length - 1) phase = LiarPhase.pass;
+        else { calculatePoints(); phase = LiarPhase.results; }
         break;
-      default:
-        break;
+      default: break;
     }
   }
 }

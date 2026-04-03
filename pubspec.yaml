@@ -147,7 +147,7 @@ msix_config:
   capabilities: internetClient, location, microphone
   architecture: x64
   install_certificate: true
-  msix_version: 2.4.0.0
+  msix_version: 2.5.0.0
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
