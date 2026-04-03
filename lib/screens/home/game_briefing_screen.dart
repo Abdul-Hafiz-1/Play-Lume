@@ -170,7 +170,7 @@ class _GameBriefingScreenState extends State<GameBriefingScreen> with SingleTick
     //ONLINE
     if (widget.game.id == 'guess_the_liar') nooffline = false;
     if (widget.game.id == 'most_likely_to') nooffline = true;
-    if (widget.game.id == 'dont_get_me_started') nooffline = true;
+    if (widget.game.id == 'dont_get_me_started') nooffline = false;
 
 
 

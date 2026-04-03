@@ -16,6 +16,7 @@ export 'heads_up_game_screen.dart';
 export 'mafia_game_screen.dart';
 export 'sync_local.dart';
 export 'guess_the_liar_local.dart';
+export 'dont_get_me_started_offline.dart';
 // export 'clocktower_screen.dart'; // Uncomment once you create the file!
 
 // --- STEP 2: THE FACTORY ---
@@ -49,6 +50,10 @@ class GameFactory {
       case 'most_likely_to':
         return MostLikelyToScreen(roomCode: rc, gameId: gi);
       case 'dont_get_me_started':
+      if (p.isNotEmpty) {
+          // If players exist, launch the Local version
+          return LocalRantScreen(players: p);
+        }
         return DontGetMeStartedGameScreen(roomCode: rc, gameId: gi);
       
       // Add your new game here:
