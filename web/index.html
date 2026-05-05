@@ -1,38 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  
+  <title>Play Lume</title>
+  <meta name="title" content="Play Lume">
+  <meta name="description" content="Discover Play Lume—an immersive and interactive digital experience. Explore our unique features and creative projects built with Flutter.">
+  <meta name="keywords" content="Play Lume, Flutter app, interactive experience, web app">
+  <meta name="author" content="Play Lume Team">
 
-  <!-- iOS meta tags & icons -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://play-lume.web.app/">
+  <meta property="og:title" content="Play Lume">
+  <meta property="og:description" content="An immersive and interactive digital experience.">
+  <meta property="og:image" content="https://play-lume.web.app/assets/images/Icon.png">
+
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://play-lume.web.app/">
+  <meta property="twitter:title" content="Play Lume">
+  <meta property="twitter:description" content="An immersive and interactive digital experience.">
+  <meta property="twitter:image" content="https://play-lume.web.app/assets/images/Icon.png">
+
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="play_lumee">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <meta name="apple-mobile-web-app-title" content="Play Lume">
+  <link rel="apple-touch-icon" href="assets/images/Icon.png">
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="assets/images/Icon.png"/>
 
-  <title>play_lumee</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* Prevent the hidden SEO text from flashing on the screen for users */
+    .seo-content {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
 </head>
 <body>
+  <div class="seo-content">
+    <h1>Play Lume</h1>
+    <p>Welcome to Play Lume, the ultimate interactive digital project. Our app offers a seamless experience designed for modern web users. Developed using Flutter, Play Lume provides high-performance interactions and creative design.</p>
+    <ul>
+      <li>Interactive Features</li>
+      <li>Creative Digital Projects</li>
+      <li>Built with Flutter for Web</li>
+    </ul>
+  </div>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 <script src="https://download.agora.io/sdk/release/iris-web-rtc_n450_w4220_0.8.6.js"></script>
