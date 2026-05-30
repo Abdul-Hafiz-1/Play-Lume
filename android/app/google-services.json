@@ -8,9 +8,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:408037924073:android:6b86050528d1042507e478",
+        "mobilesdk_app_id": "1:408037924073:android:c95c3533e84c452407e478",
         "android_client_info": {
-          "package_name": "app.abdulhafiz.play_lume"
+          "package_name": "com.abdulhafiz.play_lume"
         }
       },
       "oauth_client": [

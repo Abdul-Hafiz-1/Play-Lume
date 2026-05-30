@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.2+4
 
 environment:
   sdk: ^3.7.2
@@ -139,7 +139,7 @@ flutter:
 msix_config:
   display_name: Play Lume
   publisher_display_name: Abdul Hafiz Nizamuddin
-  identity_name: com.abdulhafiz.playlume
+  identity_name: com.abdulhafiz.play_lume
   publisher: CN=AbdulHafiz, O=AbdulHafiz, L=Mangalore, S=Karnataka, C=IN
   logo_path: assets\images\Icon.png
   # ADD THIS LINE BELOW:
