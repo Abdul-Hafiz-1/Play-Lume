@@ -44,7 +44,10 @@ class PlayLumeApp extends StatelessWidget {
         // 1. Dynamic Home Route
         if (settings.name == '/home') {
           final nickname = settings.arguments as String? ?? "Guest";
-          return MaterialPageRoute(builder: (_) => HomeScreen(nickname: nickname));
+          return MaterialPageRoute(
+            settings: settings,
+            builder: (_) => HomeScreen(nickname: nickname),
+          );
         }
 
         // 2. Dynamic Lobby Route (DEFENSIVE FIX)
@@ -58,6 +61,7 @@ class PlayLumeApp extends StatelessWidget {
           }
           
           return MaterialPageRoute(
+            settings: settings,
             builder: (_) => game != null 
                 ? GameSelectionLobbyScreen(game: game) 
                 : const NicknameScreen(),
@@ -67,17 +71,21 @@ class PlayLumeApp extends StatelessWidget {
         // 3. Dynamic Waiting Lobby
         if (settings.name == '/waiting_lobby') {
           final args = settings.arguments as Map<String, dynamic>?;
-          return MaterialPageRoute(builder: (_) => WaitingLobbyScreen(
-            roomCode: args?['roomCode']?.toString() ?? "",
-            gameId: args?['gameId']?.toString() ?? "",
-            isHost: args?['isHost'] ?? false,
-          ));
+          return MaterialPageRoute(
+            settings: settings,
+            builder: (_) => WaitingLobbyScreen(
+              roomCode: args?['roomCode']?.toString() ?? "",
+              gameId: args?['gameId']?.toString() ?? "",
+              isHost: args?['isHost'] ?? false,
+            ),
+          );
         }
 
         // 4. Communication Room
         if (settings.name == '/comm_room') {
           final args = settings.arguments as Map<String, dynamic>?;
           return MaterialPageRoute(
+            settings: settings,
             builder: (_) => CommRoomScreen(
               roomCode: args?['roomCode']?.toString() ?? "000000",
             ),
@@ -95,6 +103,7 @@ class PlayLumeApp extends StatelessWidget {
           }
 
           return MaterialPageRoute(
+            settings: settings,
             builder: (_) => game != null 
                 ? PassAndPlaySetupScreen(game: game) 
                 : const NicknameScreen(),
@@ -110,6 +119,7 @@ class PlayLumeApp extends StatelessWidget {
               : <String, dynamic>{};
 
           return MaterialPageRoute(
+            settings: settings,
             builder: (context) => GameFactory.build(gameKey, args),
           );
         }

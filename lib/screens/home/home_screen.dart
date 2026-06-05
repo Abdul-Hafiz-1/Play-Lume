@@ -112,6 +112,7 @@ class HomeScreen extends StatelessWidget {
                       _buildGameCard(context, "UNDERCOVER", "Secret Word Game", Icons.visibility_off, Colors.purple, false, '/play/undercover'),
                       _buildGameCard(context, "INFORMANT", "The Secret Ally", Icons.support_agent, Colors.teal, false, '/play/informant'),
                       _buildGameCard(context, "DONT GET CAUGHT", "Stealth Capture", Icons.camera, Colors.green, false, '/play/dont_get_caught'),
+                      _buildGameCard(context, "THE CHAMELEON", "Blend In & Bluff", Icons.palette, Colors.teal, false, '/play/chameleon'),
                     ]),
                   ),
                 ),
@@ -233,59 +234,71 @@ Widget _buildActionBtn(BuildContext context, String label, IconData icon, VoidCa
     }
   
   Widget _buildGameCard(BuildContext context, String title, String subtitle, IconData icon, Color accentColor, bool isOnline, String playRoute) {
-  return GestureDetector(
-    onTap: () {
-      // 1. Create the Game object manually from the parameters available here
-      final Game gameToPass = Game(
-        id: title.toLowerCase().replaceAll(' ', '_'),
+    final String gameKey = playRoute.replaceFirst('/play/', '');
+    final Game gameToPass = games.firstWhere(
+      (g) => g.id == gameKey,
+      orElse: () => Game(
+        id: gameKey,
         name: title,
         description: subtitle,
         instructions: "Protocol initiated for $title. Secure line established.",
-        imageAsset: 'assets/${title.toLowerCase().replaceAll(' ', '_')}_banner.jpg',
+        imageAsset: 'assets/${gameKey}_banner.jpg',
         isOnline: isOnline,
         selectionLobbyRouteName: isOnline ? '/game_lobby' : '/setup/pass_and_play',
         actualGameRouteName: playRoute,
-      );
+      ),
+    );
 
-      // 2. Pass the object DIRECTLY to the constructor
-      // DO NOT use arguments: {'game': game} as that creates the Map that causes your error
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => GameBriefingScreen(game: gameToPass),
-        ),
-      );
-    },
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.03), 
-            borderRadius: BorderRadius.circular(28), 
-            border: Border.all(color: Colors.white.withOpacity(0.08), width: 1.5)
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => GameBriefingScreen(game: gameToPass),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12), 
-                  decoration: BoxDecoration(color: accentColor.withOpacity(0.15), shape: BoxShape.circle), 
-                  child: Icon(icon, color: accentColor, size: 28)
-                ),
-                const Spacer(),
-                Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                const SizedBox(height: 4),
-                Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10)),
-              ],
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.03), 
+              borderRadius: BorderRadius.circular(28), 
+              border: Border.all(color: Colors.white.withOpacity(0.08), width: 1.5)
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10), 
+                    decoration: BoxDecoration(color: accentColor.withOpacity(0.15), shape: BoxShape.circle), 
+                    child: Icon(icon, color: accentColor, size: 24)
+                  ),
+                  const Spacer(),
+                  Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(Icons.people_outline, color: accentColor.withOpacity(0.6), size: 12),
+                      const SizedBox(width: 4),
+                      Text(
+                        "${gameToPass.minPlayers}-${gameToPass.maxPlayers} players",
+                        style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

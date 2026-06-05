@@ -9,6 +9,8 @@ class Game {
   final bool isOnline;
   final String selectionLobbyRouteName;
   final String actualGameRouteName;
+  final int minPlayers;
+  final int maxPlayers;
 
   Game({
     required this.id,
@@ -19,6 +21,8 @@ class Game {
     required this.isOnline,
     required this.selectionLobbyRouteName,
     required this.actualGameRouteName,
+    this.minPlayers = 3,
+    this.maxPlayers = 8,
   });
 }
 
@@ -32,16 +36,20 @@ final List<Game> games = [
     isOnline: true,
     selectionLobbyRouteName: '/game_lobby',
     actualGameRouteName: '/play/guess_the_liar',
+    minPlayers: 3,
+    maxPlayers: 10,
   ),
   Game(
     id: 'sync',
     name: "Sync",
     description: "Neural synchronization required. Match your frequency.",
     instructions: "A prompt will appear on all terminals. Operatives must enter the most logical response. Score points by achieving a neural match with other players. The highest synchronization level wins.",
-    imageAsset: 'assets/sync_banner.jpg',
+    imageAsset: 'assets/sync_game_banner.jpg',
     isOnline: true,
     selectionLobbyRouteName: '/game_lobby',
     actualGameRouteName: '/play/sync',
+    minPlayers: 2,
+    maxPlayers: 8,
   ),
   Game(
     id: 'dont_get_me_started',
@@ -52,6 +60,8 @@ final List<Game> games = [
     isOnline: true,
     selectionLobbyRouteName: '/game_lobby',
     actualGameRouteName: '/play/dont_get_me_started',
+    minPlayers: 3,
+    maxPlayers: 8,
   ),
   Game(
     id: 'most_likely_to',
@@ -62,6 +72,8 @@ final List<Game> games = [
     isOnline: true,
     selectionLobbyRouteName: '/game_lobby',
     actualGameRouteName: '/play/most_likely_to',
+    minPlayers: 3,
+    maxPlayers: 12,
   ),
   Game(
     id: 'undercover',
@@ -72,6 +84,8 @@ final List<Game> games = [
     isOnline: false,
     selectionLobbyRouteName: '/setup/pass_and_play',
     actualGameRouteName: '/play/undercover',
+    minPlayers: 3,
+    maxPlayers: 10,
   ),
   Game(
     id: 'dont_get_caught',
@@ -82,6 +96,8 @@ final List<Game> games = [
     isOnline: false,
     selectionLobbyRouteName: '/setup/pass_and_play',
     actualGameRouteName: '/play/dont_get_caught',
+    minPlayers: 2,
+    maxPlayers: 8,
   ),
   Game(
     id: 'informant',
@@ -92,6 +108,8 @@ final List<Game> games = [
     isOnline: false,
     selectionLobbyRouteName: '/setup/pass_and_play',
     actualGameRouteName: '/play/informant',
+    minPlayers: 3,
+    maxPlayers: 10,
   ),
   Game(
     id: 'interrogation',
@@ -102,6 +120,8 @@ final List<Game> games = [
     isOnline: false,
     selectionLobbyRouteName: '/setup/pass_and_play',
     actualGameRouteName: '/play/interrogation',
+    minPlayers: 2,
+    maxPlayers: 8,
   ),
   Game(
     id: 'spy',
@@ -112,6 +132,8 @@ final List<Game> games = [
     isOnline: false,
     selectionLobbyRouteName: '/setup/pass_and_play',
     actualGameRouteName: '/play/spy',
+    minPlayers: 3,
+    maxPlayers: 10,
   ),
   Game(
     id: 'glitch',
@@ -122,6 +144,8 @@ final List<Game> games = [
     isOnline: false,
     selectionLobbyRouteName: '/setup/pass_and_play',
     actualGameRouteName: '/play/glitch',
+    minPlayers: 3,
+    maxPlayers: 10,
   ),
   Game(
     id: 'mafia',
@@ -132,5 +156,31 @@ final List<Game> games = [
     isOnline: false,
     selectionLobbyRouteName: '/setup/pass_and_play',
     actualGameRouteName: '/play/mafia',
+    minPlayers: 5,
+    maxPlayers: 16,
+  ),
+  Game(
+    id: 'chameleon',
+    name: "The Chameleon",
+    description: "A secret word grid. Everyone knows it, except the Chameleon. Find them!",
+    instructions: "Everyone gets a coordinate pointing to the secret word, except the Chameleon. Each player says exactly one word related to the secret word to prove their innocence. The Chameleon must bluff and blend in. Vote to accuse who you think is the Chameleon!",
+    imageAsset: 'assets/chameleon_banner.jpg',
+    isOnline: false,
+    selectionLobbyRouteName: '/setup/pass_and_play',
+    actualGameRouteName: '/play/chameleon',
+    minPlayers: 3,
+    maxPlayers: 10,
+  ),
+  Game(
+    id: 'heads_up',
+    name: "Heads Up",
+    description: "Hold the terminal on your forehead and guess the words from clues!",
+    instructions: "Hold the terminal to your forehead. Other players will give you clues to help you guess the word. Tilt the phone down for a correct guess, or up to pass.",
+    imageAsset: 'assets/heads_up_banner.jpg',
+    isOnline: false,
+    selectionLobbyRouteName: '/setup/pass_and_play',
+    actualGameRouteName: '/play/heads_up',
+    minPlayers: 2,
+    maxPlayers: 12,
   ),
 ];

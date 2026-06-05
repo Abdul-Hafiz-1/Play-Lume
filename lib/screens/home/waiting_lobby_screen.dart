@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:ui';
 import '../../services/firebase_service.dart' hide snackbarKey;
 import '../../main.dart';
+import '../../models/game_model.dart';
 
 class WaitingLobbyScreen extends StatefulWidget {
   final String roomCode;
@@ -229,9 +230,175 @@ Widget _buildRoundPicker() {
   );
 }
 
+  void _showInfoBottomSheet(BuildContext context, Game game) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.75,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E1329).withOpacity(0.9),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+              border: Border.all(color: Colors.blueAccent.withOpacity(0.3), width: 1.5),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 16),
+                    width: 50,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2.5),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blueAccent.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.info_outline_rounded, color: Colors.blueAccent, size: 24),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "MISSION BRIEFING",
+                              style: TextStyle(
+                                color: Colors.blueAccent,
+                                fontSize: 10,
+                                letterSpacing: 3,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'monospace'
+                              ),
+                            ),
+                            Text(
+                              game.name.toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white54),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Divider(color: Colors.white10, height: 1),
+                Flexible(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "OBJECTIVE",
+                          style: TextStyle(
+                            color: Colors.blueAccent,
+                            fontSize: 12,
+                            letterSpacing: 2,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace'
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          game.description,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            height: 1.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          "OPERATIONAL MANUAL & RULES",
+                          style: TextStyle(
+                            color: Colors.blueAccent,
+                            fontSize: 12,
+                            letterSpacing: 2,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace'
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.02),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white.withOpacity(0.05)),
+                          ),
+                          child: Text(
+                            game.instructions,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                              height: 1.6,
+                              fontFamily: 'Quicksand',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            const Icon(Icons.people_outline_rounded, color: Colors.blueAccent, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              "PERSONNEL REQUIRED: ${game.minPlayers}-${game.maxPlayers} OPERATIVES",
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 11,
+                                letterSpacing: 1.5,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'monospace'
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildHeader() {
+    final Game? game = games.any((g) => g.id == widget.gameId) ? games.firstWhere((g) => g.id == widget.gameId) : null;
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -248,7 +415,14 @@ Widget _buildRoundPicker() {
               letterSpacing: 2
             ),
           ),
-          const Icon(Icons.wifi_tethering, color: Colors.blueAccent, size: 24),
+          IconButton(
+            icon: const Icon(Icons.info_outline_rounded, color: Colors.blueAccent, size: 24),
+            onPressed: () {
+              if (game != null) {
+                _showInfoBottomSheet(context, game);
+              }
+            },
+          ),
         ],
       ),
     );
@@ -354,11 +528,16 @@ Widget _buildRoundPicker() {
   }
 
   Widget _buildActionArea(int playerCount) {
+    final Game? game = games.any((g) => g.id == widget.gameId) ? games.firstWhere((g) => g.id == widget.gameId) : null;
+    final int minP = game?.minPlayers ?? 3;
+    final int maxP = game?.maxPlayers ?? 8;
+    final bool canStart = playerCount >= minP && playerCount <= maxP;
+
     return Padding(
       padding: const EdgeInsets.all(32.0),
       child: widget.isHost
           ? ElevatedButton(
-              onPressed: _isStarting ? null : () async {
+              onPressed: (_isStarting || !canStart) ? null : () async {
               setState(() => _isStarting = true);
               HapticFeedback.mediumImpact();
               
@@ -379,15 +558,22 @@ Widget _buildRoundPicker() {
               }
             },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3B82F6),
+                backgroundColor: canStart ? const Color(0xFF3B82F6) : Colors.white.withOpacity(0.05),
+                disabledBackgroundColor: Colors.white.withOpacity(0.05),
                 minimumSize: const Size(double.infinity, 64),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                elevation: 10,
-                shadowColor: Colors.blue.withOpacity(0.5),
+                elevation: canStart ? 10 : 0,
+                shadowColor: canStart ? Colors.blue.withOpacity(0.5) : Colors.transparent,
               ),
-              child: const Text(
-                "INITIALIZE MISSION",
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2),
+              child: Text(
+                canStart 
+                    ? "INITIALIZE MISSION" 
+                    : "LOBBY REQ: $playerCount/$minP PLAYERS",
+                style: TextStyle(
+                  color: canStart ? Colors.white : Colors.white30, 
+                  fontWeight: FontWeight.bold, 
+                  letterSpacing: 2
+                ),
               ),
             )
           : Column(

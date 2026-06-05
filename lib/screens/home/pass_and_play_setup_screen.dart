@@ -36,7 +36,7 @@ class _PassAndPlaySetupScreenState extends State<PassAndPlaySetupScreen> with Ti
   }
 
   void _addPlayer() {
-    if (_players.length >= 8) return;
+    if (_players.length >= widget.game.maxPlayers) return;
     String name = _nameController.text.trim();
     if (name.isNotEmpty && !_players.contains(name)) {
       HapticFeedback.mediumImpact();
@@ -47,7 +47,7 @@ class _PassAndPlaySetupScreenState extends State<PassAndPlaySetupScreen> with Ti
 
   @override
   Widget build(BuildContext context) {
-    bool canProceed = _players.length >= (widget.game.id == 'interrogation' ? 2 : 3);
+    bool canProceed = _players.length >= widget.game.minPlayers && _players.length <= widget.game.maxPlayers;
     Color themeColor = canProceed ? AppTheme.glowBlue : const Color(0xFFFFB300);
 
     return Scaffold(
@@ -109,7 +109,7 @@ class _PassAndPlaySetupScreenState extends State<PassAndPlaySetupScreen> with Ti
         const SizedBox(height: 10),
         Text(widget.game.name.toUpperCase(), 
           style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 2)),
-        Text("NEURAL LINK: ${_players.length}/8 OPERATIVES", 
+        Text("NEURAL LINK: ${_players.length}/${widget.game.maxPlayers} OPERATIVES (MIN: ${widget.game.minPlayers})", 
           style: TextStyle(color: color.withOpacity(0.6), fontSize: 10, letterSpacing: 3, fontWeight: FontWeight.bold)),
       ],
     );
@@ -183,8 +183,16 @@ class _PassAndPlaySetupScreenState extends State<PassAndPlaySetupScreen> with Ti
           boxShadow: active ? [BoxShadow(color: color.withOpacity(0.4), blurRadius: 20)] : [],
         ),
         child: Center(
-          child: Text("ESTABLISH LINK", 
-            style: TextStyle(color: active ? Colors.black : Colors.white24, fontWeight: FontWeight.w900, letterSpacing: 2)),
+          child: Text(
+            active 
+                ? "ESTABLISH LINK" 
+                : "LINK REQ: ${_players.length}/${widget.game.minPlayers} OPERATIVES",
+            style: TextStyle(
+              color: active ? Colors.black : Colors.white24, 
+              fontWeight: FontWeight.w900, 
+              letterSpacing: 2
+            ),
+          ),
         ),
       ),
     );

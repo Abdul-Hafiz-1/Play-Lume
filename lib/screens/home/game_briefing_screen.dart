@@ -125,12 +125,187 @@ class _GameBriefingScreenState extends State<GameBriefingScreen> with SingleTick
     );
   }
 
+  void _showInfoBottomSheet(BuildContext context) {
+    final Color themeColor = _getThemeColor();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.75,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E1329).withOpacity(0.9),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+              border: Border.all(color: themeColor.withOpacity(0.3), width: 1.5),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 16),
+                    width: 50,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2.5),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: themeColor.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.info_outline_rounded, color: themeColor, size: 24),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "MISSION BRIEFING",
+                              style: TextStyle(
+                                color: themeColor.withOpacity(0.8),
+                                fontSize: 10,
+                                letterSpacing: 3,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'monospace'
+                              ),
+                            ),
+                            Text(
+                              widget.game.name.toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white54),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Divider(color: Colors.white10, height: 1),
+                Flexible(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "OBJECTIVE",
+                          style: TextStyle(
+                            color: themeColor,
+                            fontSize: 12,
+                            letterSpacing: 2,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace'
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.game.description,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            height: 1.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          "OPERATIONAL MANUAL & RULES",
+                          style: TextStyle(
+                            color: themeColor,
+                            fontSize: 12,
+                            letterSpacing: 2,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace'
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.02),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white.withOpacity(0.05)),
+                          ),
+                          child: Text(
+                            widget.game.instructions,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                              height: 1.6,
+                              fontFamily: 'Quicksand',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Icon(Icons.people_outline_rounded, color: themeColor, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              "PERSONNEL REQUIRED: ${widget.game.minPlayers}-${widget.game.maxPlayers} OPERATIVES",
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 11,
+                                letterSpacing: 1.5,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'monospace'
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildTopNav() {
     return Padding(
-      padding: const EdgeInsets.all(10),
-      child: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white24, size: 20),
-        onPressed: () => Navigator.pop(context),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white24, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.info_outline_rounded, color: Colors.white70, size: 24),
+            onPressed: () => _showInfoBottomSheet(context),
+          ),
+        ],
       ),
     );
   }
@@ -153,40 +328,26 @@ class _GameBriefingScreenState extends State<GameBriefingScreen> with SingleTick
   }
 
   Widget _buildActionDeck(Color theme) {
-    bool supportsOnline = widget.game.isOnline; 
-    bool nooffline = !widget.game.isOnline;
-    // Force "Don't Get Caught" to be offline only if not already set
-    // OFFLINE
-    if (widget.game.id == 'dont_get_caught') supportsOnline = false;
-    if (widget.game.id == 'the_glitch') nooffline = false;
-    if (widget.game.id == 'interrogation') nooffline = false;
-    if (widget.game.id == 'spy') nooffline = false;
-    if (widget.game.id == 'undercover') nooffline = false;
-    if (widget.game.id == 'informant') nooffline = false;
-    if (widget.game.id == 'dont_get_caught') nooffline = false;
-    if (widget.game.id == 'heads_up') nooffline = false;
-    if (widget.game.id == 'mafia') nooffline = false;
+    bool supportsOffline = true;
+    bool supportsOnline = widget.game.isOnline;
 
-    //ONLINE
-    if (widget.game.id == 'guess_the_liar') nooffline = false;
-    if (widget.game.id == 'most_likely_to') nooffline = true;
-    if (widget.game.id == 'dont_get_me_started') nooffline = false;
+    if (widget.game.id == 'most_likely_to') {
+      supportsOffline = false;
+    }
 
-
-
-    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(30, 20, 30, 40),
       child: Row(
         children: [
-          if (nooffline == false) ...[
-          Expanded(child: _buildTacticalButton("OFFLINE", theme, false)),
+          if (supportsOffline) ...[
+            Expanded(child: _buildTacticalButton("OFFLINE", theme, false)),
           ],
-          
+          if (supportsOffline && supportsOnline) ...[
+            const SizedBox(width: 20),
+          ],
           if (supportsOnline) ...[
-          const SizedBox(width: 20),
-          Expanded(child: _buildTacticalButton("ONLINE", theme, true)),
+            Expanded(child: _buildTacticalButton("ONLINE", theme, true)),
           ],
         ],
       ),

@@ -17,6 +17,7 @@ export 'mafia_game_screen.dart';
 export 'sync_local.dart';
 export 'guess_the_liar_local.dart';
 export 'dont_get_me_started_offline.dart';
+export 'chameleon_screen.dart';
 // export 'clocktower_screen.dart'; // Uncomment once you create the file!
 
 // --- STEP 2: THE FACTORY ---
@@ -81,6 +82,11 @@ class GameFactory {
             ? List<String>.from(args['players']) 
             : [];
         return MafiaGameScreen(players: p);
+      case 'chameleon':
+        final List<String> p = args['players'] is List 
+            ? List<String>.from(args['players']) 
+            : [];
+        return ChameleonScreen(players: p);
 
       default:
         return Scaffold(
