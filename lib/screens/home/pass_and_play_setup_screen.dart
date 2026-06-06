@@ -1,9 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:math';
-import 'dart:ui';
-import '../../models/game_model.dart';
+
 import '../../core/theme.dart';
+import '../../models/game_model.dart';
 
 class PassAndPlaySetupScreen extends StatefulWidget {
   final Game game;
@@ -13,31 +14,19 @@ class PassAndPlaySetupScreen extends StatefulWidget {
   State<PassAndPlaySetupScreen> createState() => _PassAndPlaySetupScreenState();
 }
 
-class _PassAndPlaySetupScreenState extends State<PassAndPlaySetupScreen> with TickerProviderStateMixin {
+class _PassAndPlaySetupScreenState extends State<PassAndPlaySetupScreen> {
   final TextEditingController _nameController = TextEditingController();
   final List<String> _players = [];
-  bool _isLoading = false;
-  late AnimationController _pulseController;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-  }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _pulseController.dispose();
     super.dispose();
   }
 
   void _addPlayer() {
     if (_players.length >= widget.game.maxPlayers) return;
-    String name = _nameController.text.trim();
+    final name = _nameController.text.trim();
     if (name.isNotEmpty && !_players.contains(name)) {
       HapticFeedback.mediumImpact();
       setState(() => _players.add(name));
@@ -45,51 +34,68 @@ class _PassAndPlaySetupScreenState extends State<PassAndPlaySetupScreen> with Ti
     }
   }
 
+  void _removePlayer(int index) {
+    HapticFeedback.selectionClick();
+    setState(() => _players.removeAt(index));
+  }
+
   @override
   Widget build(BuildContext context) {
-    bool canProceed = _players.length >= widget.game.minPlayers && _players.length <= widget.game.maxPlayers;
-    Color themeColor = canProceed ? AppTheme.glowBlue : const Color(0xFFFFB300);
+    final canProceed = _players.length >= widget.game.minPlayers &&
+        _players.length <= widget.game.maxPlayers;
+    final accent = canProceed ? AppTheme.glowBlue : const Color(0xFFFFB300);
+    final progress = (_players.length / widget.game.minPlayers).clamp(0.0, 1.0).toDouble();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF020617),
-      resizeToAvoidBottomInset: false,
+      backgroundColor: AppTheme.darkBase,
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
-          // 1. Ambient Background Orbs
-          Positioned(top: -50, left: -50, child: _lightOrb(themeColor.withOpacity(0.15))),
-          Positioned(bottom: -50, right: -50, child: _lightOrb(Colors.purpleAccent.withOpacity(0.1))),
-
-          // 2. Animated Neural Network
-          Center(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                _buildConnections(themeColor),
-                _buildCentralHub(themeColor),
-                // Map players to animated floating nodes
-                ..._players.asMap().entries.map((e) => _FloatingOperativeNode(
-                      index: e.key,
-                      name: e.value,
-                      color: themeColor,
-                      onRemove: () => setState(() => _players.removeAt(e.key)),
-                    )),
-              ],
+          Positioned.fill(
+            child: Image.asset(
+              widget.game.imageAsset,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(color: AppTheme.darkBase),
             ),
           ),
-
-          // 3. UI Content
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppTheme.darkBase.withOpacity(0.68),
+                    AppTheme.darkBase.withOpacity(0.92),
+                    AppTheme.darkBase,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(top: -120, left: -80, child: _glowOrb(300, accent.withOpacity(0.18))),
+          Positioned(bottom: -140, right: -80, child: _glowOrb(360, Colors.purpleAccent.withOpacity(0.12))),
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(themeColor),
-                  const Spacer(),
-                  _buildGlassInput(themeColor),
-                  const SizedBox(height: 20),
-                  _buildStartButton(canProceed, themeColor),
-                ],
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 12, 22, 22),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildHeader(accent),
+                      const SizedBox(height: 18),
+                      _buildStatusCard(accent, progress, canProceed),
+                      const SizedBox(height: 16),
+                      _buildInput(accent),
+                      const SizedBox(height: 16),
+                      Expanded(child: _buildRoster(accent)),
+                      const SizedBox(height: 16),
+                      _buildStartButton(canProceed, accent),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -98,99 +104,225 @@ class _PassAndPlaySetupScreenState extends State<PassAndPlaySetupScreen> with Ti
     );
   }
 
-  Widget _buildHeader(Color color) {
-    return Column(
+  Widget _buildHeader(Color accent) {
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
         ),
-        const SizedBox(height: 10),
-        Text(widget.game.name.toUpperCase(), 
-          style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 2)),
-        Text("NEURAL LINK: ${_players.length}/${widget.game.maxPlayers} OPERATIVES (MIN: ${widget.game.minPlayers})", 
-          style: TextStyle(color: color.withOpacity(0.6), fontSize: 10, letterSpacing: 3, fontWeight: FontWeight.bold)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.game.name.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.4,
+                  height: 1.05,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'PASS & PLAY SETUP',
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 3,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildCentralHub(Color color) {
-    return ScaleTransition(
-      scale: Tween(begin: 1.0, end: 1.1).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut)),
-      child: Container(
-        width: 90, height: 90,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: color.withOpacity(0.5), width: 2),
-          boxShadow: [BoxShadow(color: color.withOpacity(0.2), blurRadius: 30, spreadRadius: 5)],
-        ),
-        child: Icon(Icons.radar, color: color, size: 40),
-      ),
-    );
-  }
-
-  Widget _buildConnections(Color color) {
-    return CustomPaint(
-      size: const Size(400, 400),
-      painter: _LinkPainter(playerCount: _players.length, color: color, pulse: _pulseController.value),
-    );
-  }
-
-  Widget _buildGlassInput(Color color) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F172A).withOpacity(0.5),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: color.withOpacity(0.3)),
-          ),
-          child: TextField(
-            controller: _nameController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: "ENTER CODENAME...",
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 14),
-              border: InputBorder.none,
-              suffixIcon: IconButton(
-                icon: Icon(Icons.add_circle, color: color, size: 28),
-                onPressed: _addPlayer,
+  Widget _buildStatusCard(Color accent, double progress, bool canProceed) {
+    return _glassPanel(
+      borderColor: accent.withOpacity(0.35),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.14),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: accent.withOpacity(0.4)),
+                ),
+                child: Icon(canProceed ? Icons.check_rounded : Icons.groups_rounded, color: accent),
               ),
-            ),
-            onSubmitted: (_) => _addPlayer(),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      canProceed ? 'Roster Ready' : 'Add ${widget.game.minPlayers - _players.length} More',
+                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_players.length}/${widget.game.maxPlayers} players joined • minimum ${widget.game.minPlayers}',
+                      style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: Colors.white.withOpacity(0.08),
+              color: accent,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStartButton(bool active, Color color) {
-    return InkWell(
-      onTap: active ? () {
-        HapticFeedback.vibrate();
-        Navigator.pushNamed(context, widget.game.actualGameRouteName, arguments: {'players': _players});
-      } : null,
+  Widget _buildInput(Color accent) {
+    return _glassPanel(
+      padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+      borderColor: Colors.white.withOpacity(0.12),
+      child: Row(
+        children: [
+          Icon(Icons.badge_outlined, color: accent),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: _nameController,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              decoration: InputDecoration(
+                hintText: 'Add player name',
+                hintStyle: TextStyle(color: Colors.white.withOpacity(0.25)),
+                border: InputBorder.none,
+              ),
+              onSubmitted: (_) => _addPlayer(),
+            ),
+          ),
+          IconButton(
+            onPressed: _addPlayer,
+            icon: Icon(Icons.add_circle_rounded, color: accent, size: 32),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoster(Color accent) {
+    if (_players.isEmpty) {
+      return _glassPanel(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.group_add_outlined, color: Colors.white.withOpacity(0.24), size: 64),
+              const SizedBox(height: 14),
+              const Text(
+                'No players added yet',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Build the roster, then start the mission.',
+                style: TextStyle(color: Colors.white.withOpacity(0.45)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return _glassPanel(
+      padding: const EdgeInsets.all(12),
+      child: ListView.separated(
+        physics: const BouncingScrollPhysics(),
+        itemCount: _players.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final player = _players[index];
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.045),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 19,
+                  backgroundColor: accent.withOpacity(0.16),
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(color: accent, fontWeight: FontWeight.w900),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    player,
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Remove player',
+                  onPressed: () => _removePlayer(index),
+                  icon: const Icon(Icons.close_rounded, color: Colors.white38),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStartButton(bool active, Color accent) {
+    return GestureDetector(
+      onTap: active
+          ? () {
+              HapticFeedback.vibrate();
+              Navigator.pushNamed(
+                context,
+                widget.game.actualGameRouteName,
+                arguments: {'players': _players},
+              );
+            }
+          : null,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: double.infinity, height: 64,
+        duration: const Duration(milliseconds: 250),
+        height: 62,
         decoration: BoxDecoration(
-          color: active ? color : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: active ? [BoxShadow(color: color.withOpacity(0.4), blurRadius: 20)] : [],
+          color: active ? accent : Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: active ? accent : Colors.white.withOpacity(0.1)),
+          boxShadow: active ? [BoxShadow(color: accent.withOpacity(0.34), blurRadius: 24)] : [],
         ),
         child: Center(
           child: Text(
-            active 
-                ? "ESTABLISH LINK" 
-                : "LINK REQ: ${_players.length}/${widget.game.minPlayers} OPERATIVES",
+            active ? 'START MISSION' : 'ADD ${widget.game.minPlayers} PLAYERS TO START',
             style: TextStyle(
-              color: active ? Colors.black : Colors.white24, 
-              fontWeight: FontWeight.w900, 
-              letterSpacing: 2
+              color: active ? Colors.white : Colors.white30,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.5,
             ),
           ),
         ),
@@ -198,120 +330,37 @@ class _PassAndPlaySetupScreenState extends State<PassAndPlaySetupScreen> with Ti
     );
   }
 
-  Widget _lightOrb(Color color) {
-    return Container(
-      width: 400, height: 400,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color, boxShadow: [
-        BoxShadow(color: color, blurRadius: 150, spreadRadius: 50)
-      ]),
-    );
-  }
-}
-
-class _FloatingOperativeNode extends StatefulWidget {
-  final int index;
-  final String name;
-  final Color color;
-  final VoidCallback onRemove;
-  const _FloatingOperativeNode({required this.index, required this.name, required this.color, required this.onRemove});
-
-  @override
-  State<_FloatingOperativeNode> createState() => _FloatingOperativeNodeState();
-}
-
-class _FloatingOperativeNodeState extends State<_FloatingOperativeNode> with SingleTickerProviderStateMixin {
-  late AnimationController _floatController;
-
-  @override
-  void initState() {
-    super.initState();
-    // Unique float offset for each node
-    _floatController = AnimationController(
-      vsync: this,
-      duration: Duration(seconds: 2 + (widget.index % 3)),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _floatController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    double angle = (widget.index * (2 * pi / 8)) - (pi / 2);
-    double radius = 135;
-    
-    return AnimatedBuilder(
-      animation: _floatController,
-      builder: (context, child) {
-        // Adds a bobbing motion to the radius
-        double dynamicRadius = radius + (sin(_floatController.value * pi) * 10);
-        double x = cos(angle) * dynamicRadius;
-        double y = sin(angle) * dynamicRadius;
-
-        return Transform.translate(
-          offset: Offset(x, y),
-          child: GestureDetector(
-            onTap: widget.onRemove,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF020617).withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: widget.color.withOpacity(0.5)),
-                  ),
-                  child: Text(widget.name.toUpperCase(), 
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                ),
-              ),
-            ),
+  Widget _glassPanel({
+    required Widget child,
+    EdgeInsets padding = const EdgeInsets.all(18),
+    Color? borderColor,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0E1329).withOpacity(0.62),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: borderColor ?? Colors.white.withOpacity(0.1), width: 1.2),
           ),
-        );
-      },
+          child: child,
+        ),
+      ),
     );
   }
-}
 
-class _LinkPainter extends CustomPainter {
-  final int playerCount;
-  final Color color;
-  final double pulse;
-  _LinkPainter({required this.playerCount, required this.color, required this.pulse});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withOpacity(0.15)
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-
-    final particlePaint = Paint()
-      ..color = color.withOpacity(0.5)
-      ..style = PaintingStyle.fill;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    for (int i = 0; i < playerCount; i++) {
-      double angle = (i * (2 * pi / 8)) - (pi / 2);
-      // We match the dynamic radius of the nodes here for the lines
-      double radius = 125 + (sin(pulse * pi) * 8);
-      Offset nodePos = Offset(center.dx + cos(angle) * radius, center.dy + sin(angle) * radius);
-      
-      // Draw static line
-      canvas.drawLine(center, nodePos, paint);
-
-      // Draw moving data particle along the line
-      double particleOffset = (pulse + (i * 0.2)) % 1.0;
-      Offset particlePos = Offset.lerp(center, nodePos, particleOffset)!;
-      canvas.drawCircle(particlePos, 2, particlePaint);
-    }
+  Widget _glowOrb(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+        boxShadow: [BoxShadow(color: color, blurRadius: 140, spreadRadius: 42)],
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

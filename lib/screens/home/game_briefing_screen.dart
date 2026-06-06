@@ -76,7 +76,7 @@ class _GameBriefingScreenState extends State<GameBriefingScreen> with SingleTick
               ).createShader(rect),
               blendMode: BlendMode.dstIn,
               child: Image.asset(
-                'assets/${widget.game.id}_banner.jpg',
+                widget.game.imageAsset,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(color: Colors.black),
               ),

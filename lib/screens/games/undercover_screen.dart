@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/navigation.dart';
 import 'dart:math';
 
 class UndercoverScreen extends StatefulWidget {
@@ -454,7 +455,7 @@ class _UndercoverScreenState extends State<UndercoverScreen> {
         ),
         const SizedBox(height: 12),
         TextButton(
-          onPressed: () => Navigator.popUntil(context, ModalRoute.withName('/home')),
+          onPressed: () => AppNavigation.goHome(context),
           child: const Text('Return to Home', style: TextStyle(color: Color(0xFF8E95A3))),
         )
       ],

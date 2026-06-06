@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../services/firebase_service.dart';
 import '../../logic/liar_engine.dart';
 import '../../core/theme.dart';
+import '../../core/navigation.dart';
 
 class LocalGuessTheLiarScreen extends StatefulWidget {
   final List<String> players;
@@ -110,7 +111,7 @@ class _LocalGuessTheLiarScreenState extends State<LocalGuessTheLiarScreen> with 
             },
           ),
         ),
-        _buildLumeButton("RETURN TO HQ", () => Navigator.pop(context)),
+        _buildLumeButton("RETURN TO HQ", () => AppNavigation.goHome(context)),
       ]),
     );
   }

@@ -77,15 +77,15 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/icon.png"
+  image_path: "assets/images/Icon.png"
   # For Android Adaptive Icons (The "Hole" in the background)
   adaptive_icon_background: "#04060E" # Matches your game theme
-  adaptive_icon_foreground: "assets/images/icon.png"
+  adaptive_icon_foreground: "assets/images/Icon.png"
   min_sdk_android: 21 # Set this to the minimum SDK version your app supports (default 21)
 
 flutter_native_splash:
   color: "#04060E"
-  image: "assets/images/icon.png"
+  image: "assets/images/Icon.png"
   fullscreen: true
 
 # The following section is specific to Flutter packages.
@@ -120,6 +120,7 @@ flutter:
     - assets/interrogation_banner.jpg
     - assets/guess_the_liar_banner.jpg
     - assets/the_glitch_banner.jpg
+    - assets/chameleon_banner.jpg
     - assets/most_likely_to_banner.jpg
     - assets/heads_up_banner.jpg
     - assets/dont_get_caught_banner.jpg

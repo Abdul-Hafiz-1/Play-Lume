@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../services/firebase_service.dart';
 import '../../models/game_model.dart';
+import '../../core/navigation.dart';
 
 class GuessTheLiarGameScreen extends StatefulWidget {
   final String roomCode;
@@ -421,7 +422,7 @@ class _GuessTheLiarGameScreenState extends State<GuessTheLiarGameScreen> with Si
         const Text("CAMPAIGN COMPLETE", style: TextStyle(color: Colors.white24, letterSpacing: 4, fontSize: 12)),
         Text(winner['nickname'].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w900)),
         const SizedBox(height: 40),
-        _buildActionBtn("RETURN TO BASE", () => Navigator.popUntil(context, ModalRoute.withName('/home'))),
+        _buildActionBtn("RETURN TO BASE", () => AppNavigation.goHome(context)),
       ],
     );
   }

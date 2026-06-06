@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/navigation.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 import 'dart:ui';
@@ -380,7 +381,7 @@ Widget _buildResultPhase() {
 
       // Footer Button
       ElevatedButton(
-        onPressed: () => Navigator.pop(context), 
+        onPressed: () => AppNavigation.goHome(context), 
         style: ElevatedButton.styleFrom(
           minimumSize: const Size(double.infinity, 70),
           backgroundColor: const Color(0xFF1F2947),

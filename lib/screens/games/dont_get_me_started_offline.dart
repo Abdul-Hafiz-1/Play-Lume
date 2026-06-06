@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../logic/dont_get_me_started_engine.dart';
 import '../../core/theme.dart';
+import '../../core/navigation.dart';
 
 class LocalRantScreen extends StatefulWidget {
   final List<String> players;
@@ -243,7 +244,7 @@ class _LocalRantScreenState extends State<LocalRantScreen> with TickerProviderSt
           engine.startNewRound();
           setState(() {});
         } else {
-          Navigator.pop(context);
+          AppNavigation.goHome(context);
         }
       }),
     ]));

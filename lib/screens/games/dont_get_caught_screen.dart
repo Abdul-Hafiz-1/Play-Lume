@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/navigation.dart';
 import 'package:camera/camera.dart';
 import 'package:gal/gal.dart'; 
 import 'package:flutter/services.dart'; 
@@ -325,7 +326,7 @@ class _DontGetCaughtScreenState extends State<DontGetCaughtScreen> {
       children: [
         const Text("FINAL STANDINGS", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
         _buildLeaderboard(),
-        ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text("Return to HQ")),
+        ElevatedButton(onPressed: () => AppNavigation.goHome(context), child: const Text("Return to HQ")),
       ],
     );
   }

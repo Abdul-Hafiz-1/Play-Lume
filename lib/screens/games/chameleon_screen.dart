@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../../core/navigation.dart';
 
 class ChameleonScreen extends StatefulWidget {
   final List<String> players;
@@ -12,69 +16,73 @@ class ChameleonScreen extends StatefulWidget {
 }
 
 class _ChameleonScreenState extends State<ChameleonScreen> {
-  // Game Phases: 'setup', 'reveal', 'discuss', 'vote', 'guess', 'result'
+  static const Color _base = Color(0xFF04060E);
+  static const Color _surface = Color(0xFF0E1329);
+  static const Color _surfaceAlt = Color(0xFF151C36);
+  static const Color _ink = Colors.white;
+  static const Color _danger = Color(0xFFFF5C7A);
+  static const Color _accent = Color(0xFF3B82F6);
+  static const Color _accentTwo = Color(0xFF22D3EE);
+  static const Color _gold = Color(0xFFFFB84D);
+
   String _gamePhase = 'setup';
   int _currentPlayerIndex = 0;
   bool _isRoleRevealed = false;
-  
-  // Game Setup Variables
+
   String? _selectedCategory;
   late String _chameleonPlayer;
-  late int _diceA; // 1-6
-  late int _diceB; // 1-6
-  late int _targetRow; // 0-3
-  late int _targetCol; // 0-3
+  late int _diceA;
+  late int _diceB;
+  late int _targetRow;
+  late int _targetCol;
   late String _secretWord;
   String? _votedPlayer;
   String? _chameleonGuessWord;
   bool _chameleonGuessedRight = false;
   bool _isChameleonCaught = false;
 
-  // Timer for discussion
   Timer? _timer;
-  int _timeLeft = 120; // 2 minutes standard
+  int _timeLeft = 120;
 
-  // Categories and kid-friendly words
-  final Map<String, List<String>> _categories = {
-    "Animals 🦁": [
-      "Dog", "Cat", "Lion", "Tiger",
-      "Elephant", "Monkey", "Rabbit", "Bear",
-      "Dolphin", "Shark", "Frog", "Duck",
-      "Bird", "Horse", "Cow", "Sheep"
+  final Map<String, List<String>> _categories = const {
+    'Animals': [
+      'Dog', 'Cat', 'Lion', 'Tiger',
+      'Elephant', 'Monkey', 'Rabbit', 'Bear',
+      'Dolphin', 'Shark', 'Frog', 'Duck',
+      'Bird', 'Horse', 'Cow', 'Sheep',
     ],
-    "Food 🍕": [
-      "Pizza", "Burger", "Pasta", "Cake",
-      "Ice Cream", "Cookie", "Apple", "Banana",
-      "Strawberry", "Fries", "Taco", "Bread",
-      "Cheese", "Egg", "Candy", "Donut"
+    'Food': [
+      'Pizza', 'Burger', 'Pasta', 'Cake',
+      'Ice Cream', 'Cookie', 'Apple', 'Banana',
+      'Strawberry', 'Fries', 'Taco', 'Bread',
+      'Cheese', 'Egg', 'Candy', 'Donut',
     ],
-    "School 🎒": [
-      "Pen", "Pencil", "Book", "Ruler",
-      "Eraser", "Desk", "Chair", "Paper",
-      "Bag", "Board", "Clock", "Computer",
-      "Teacher", "Student", "School", "Glue"
+    'School': [
+      'Pen', 'Pencil', 'Book', 'Ruler',
+      'Eraser', 'Desk', 'Chair', 'Paper',
+      'Bag', 'Board', 'Clock', 'Computer',
+      'Teacher', 'Student', 'School', 'Glue',
     ],
-    "Colors & Shapes 🎨": [
-      "Red", "Blue", "Green", "Yellow",
-      "Orange", "Purple", "Pink", "Brown",
-      "Circle", "Square", "Triangle", "Star",
-      "Heart", "Rectangle", "Diamond", "Oval"
+    'Colors & Shapes': [
+      'Red', 'Blue', 'Green', 'Yellow',
+      'Orange', 'Purple', 'Pink', 'Brown',
+      'Circle', 'Square', 'Triangle', 'Star',
+      'Heart', 'Rectangle', 'Diamond', 'Oval',
     ],
-    "Outer Space 🚀": [
-      "Sun", "Moon", "Earth", "Mars",
-      "Star", "Rocket", "Alien", "Spaceship",
-      "Planet", "Orbit", "Comet", "Galaxy",
-      "Astronaut", "Jupiter", "Saturn", "Telescope"
+    'Outer Space': [
+      'Sun', 'Moon', 'Earth', 'Mars',
+      'Star', 'Rocket', 'Alien', 'Spaceship',
+      'Planet', 'Orbit', 'Comet', 'Galaxy',
+      'Astronaut', 'Jupiter', 'Saturn', 'Telescope',
     ],
-    "Under the Sea 🌊": [
-      "Fish", "Crab", "Octopus", "Starfish",
-      "Whale", "Shark", "Seahorse", "Turtle",
-      "Coral", "Shell", "Submarine", "Seaweed",
-      "Jellyfish", "Lobster", "Diver", "Sand"
-    ]
+    'Under the Sea': [
+      'Fish', 'Crab', 'Octopus', 'Starfish',
+      'Whale', 'Shark', 'Seahorse', 'Turtle',
+      'Coral', 'Shell', 'Submarine', 'Seaweed',
+      'Jellyfish', 'Lobster', 'Diver', 'Sand',
+    ],
   };
 
-  // Randomized Decoder Matrix generated for the round (maps outcomes to coordinates)
   late List<List<String>> _decoderMatrix;
 
   @override
@@ -90,51 +98,44 @@ class _ChameleonScreenState extends State<ChameleonScreen> {
   }
 
   void _initializeDecoderMatrix() {
-    final List<String> coords = [];
-    for (int r = 1; r <= 4; r++) {
-      for (final char in ['A', 'B', 'C', 'D']) {
-        coords.add("$char$r");
+    final coords = <String>[];
+    for (int row = 1; row <= 4; row++) {
+      for (final col in ['A', 'B', 'C', 'D']) {
+        coords.add('$col$row');
       }
     }
     coords.shuffle();
-    
-    // Create a 4x4 matrix from shuffled coordinates
-    _decoderMatrix = List.generate(4, (r) {
-      return List.generate(4, (c) {
-        return coords[r * 4 + c];
-      });
-    });
+    _decoderMatrix = List.generate(
+      4,
+      (row) => List.generate(4, (col) => coords[row * 4 + col]),
+    );
   }
 
   void _setupGame(String categoryName) {
+    if (widget.players.length < 3) return;
+
     final random = Random();
+    _initializeDecoderMatrix();
     _selectedCategory = categoryName;
     _chameleonPlayer = widget.players[random.nextInt(widget.players.length)];
-    
-    // Roll virtual dice
     _diceA = random.nextInt(6) + 1;
     _diceB = random.nextInt(6) + 1;
-    
-    // Choose secret target B2 etc from the dice outcome
     _targetRow = (_diceA - 1) % 4;
     _targetCol = (_diceB - 1) % 4;
-    
-    // Get target coordinate e.g. "B2"
-    final coordStr = _decoderMatrix[_targetRow][_targetCol];
-    final colChar = coordStr[0];
-    final rowNum = int.parse(coordStr[1]);
 
-    final colIndex = ['A', 'B', 'C', 'D'].indexOf(colChar);
-    final rowIndex = rowNum - 1;
-    
+    final coord = _decoderMatrix[_targetRow][_targetCol];
+    final colIndex = ['A', 'B', 'C', 'D'].indexOf(coord[0]);
+    final rowIndex = int.parse(coord[1]) - 1;
     _secretWord = _categories[categoryName]![rowIndex * 4 + colIndex];
-    
+
     setState(() {
       _gamePhase = 'reveal';
       _currentPlayerIndex = 0;
       _isRoleRevealed = false;
       _votedPlayer = null;
       _chameleonGuessWord = null;
+      _chameleonGuessedRight = false;
+      _isChameleonCaught = false;
       _timeLeft = 120;
     });
   }
@@ -146,9 +147,8 @@ class _ChameleonScreenState extends State<ChameleonScreen> {
       if (_timeLeft > 0) {
         setState(() => _timeLeft--);
       } else {
-        _timer?.cancel();
+        timer.cancel();
         HapticFeedback.vibrate();
-        // Informative time-up: does not auto-transition to keep control manual in offline play!
       }
     });
   }
@@ -156,657 +156,759 @@ class _ChameleonScreenState extends State<ChameleonScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF04060E),
-      extendBodyBehindAppBar: true,
+      backgroundColor: _base,
       appBar: AppBar(
-        title: const Text("The Chameleon", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-        automaticallyImplyLeading: _gamePhase == 'setup' || (_gamePhase == 'reveal' && _currentPlayerIndex == 0),
+        title: const Text('The Chameleon'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading:
+            _gamePhase == 'setup' || (_gamePhase == 'reveal' && _currentPlayerIndex == 0),
       ),
       body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(-0.8, -0.6),
-            radius: 1.2,
-            colors: [Color(0xFF162252), Color(0xFF04060E)],
-            stops: [0.0, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            // Centered layout limits width on Web for a clean console/arcade view
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 650),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                child: _buildCurrentPhase(),
+        decoration: const BoxDecoration(color: _base),
+        child: Stack(
+          children: [
+            Positioned(top: -150, left: -80, child: _glowOrb(360, _accent.withOpacity(0.14))),
+            Positioned(bottom: -160, right: -90, child: _glowOrb(420, Colors.purpleAccent.withOpacity(0.1))),
+            SafeArea(
+              top: false,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
+                    child: _buildCurrentPhase(),
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildCurrentPhase() {
+    if (widget.players.length < 3) {
+      return _buildTooFewPlayers();
+    }
+
     switch (_gamePhase) {
-      case 'setup': return _buildSetupPhase();
-      case 'reveal': return _buildRevealPhase();
-      case 'discuss': return _buildDiscussPhase();
-      case 'vote': return _buildVotePhase();
-      case 'guess': return _buildChameleonGuessPhase();
-      case 'result': return _buildResultPhase();
-      default: return const Center(child: CircularProgressIndicator());
+      case 'setup':
+        return _buildSetupPhase();
+      case 'reveal':
+        return _buildRevealPhase();
+      case 'discuss':
+        return _buildDiscussPhase();
+      case 'vote':
+        return _buildVotePhase();
+      case 'guess':
+        return _buildGuessPhase();
+      case 'result':
+        return _buildResultPhase();
+      default:
+        return const Center(child: CircularProgressIndicator());
     }
   }
 
-  // --- PHASE 1: CATEGORY SELECTION ---
+  Widget _buildTooFewPlayers() {
+    return _tableCard(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.group_off_rounded, color: _danger, size: 64),
+          const SizedBox(height: 14),
+          const Text(
+            'Need at least 3 players',
+            style: TextStyle(color: _ink, fontSize: 26, fontWeight: FontWeight.w900),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'The Chameleon works best when one player can hide inside a group.',
+            style: TextStyle(color: Colors.white60, height: 1.4),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 22),
+          _paperButton('Return Home', () => AppNavigation.goHome(context)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSetupPhase() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          "CHOOSE A CATEGORY",
-          style: TextStyle(color: Color(0xFF8E95A3), fontSize: 11, letterSpacing: 2, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16),
+        _sectionTitle('Choose a Topic Card', 'Pick a deck, roll the dice, and pass the device around.'),
+        const SizedBox(height: 14),
         Expanded(
-          child: ListView(
+          child: GridView.builder(
             physics: const BouncingScrollPhysics(),
-            shrinkWrap: true,
-            children: _categories.keys.map((catName) {
-              return Card(
-                color: const Color(0xFF0E1329),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: const BorderSide(color: Color(0xFF1F2947), width: 1.5),
-                ),
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () {
-                    HapticFeedback.mediumImpact();
-                    _setupGame(catName);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          catName,
-                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const Icon(Icons.arrow_forward_ios_rounded, color: Colors.blueAccent, size: 16),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 240,
+              mainAxisSpacing: 14,
+              crossAxisSpacing: 14,
+              childAspectRatio: 0.86,
+            ),
+            itemCount: _categories.length,
+            itemBuilder: (context, index) {
+              final category = _categories.keys.elementAt(index);
+              return _categoryCard(category);
+            },
           ),
         ),
       ],
     );
   }
 
-  // --- PHASE 2: ROLE REVEAL ---
-  Widget _buildRevealPhase() {
-    String currentPlayer = widget.players[_currentPlayerIndex];
-    bool isChameleon = currentPlayer == _chameleonPlayer;
-    String coordStr = _decoderMatrix[_targetRow][_targetCol];
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 20),
-          const Icon(Icons.fingerprint_rounded, color: Colors.blueAccent, size: 80),
-          const SizedBox(height: 20),
-          const Text(
-            "SECURITY CLEARANCE REQUIRED",
-            style: TextStyle(color: Color(0xFF8E95A3), letterSpacing: 3, fontWeight: FontWeight.bold, fontSize: 12),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            currentPlayer.toUpperCase(),
-            style: const TextStyle(fontSize: 36, color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            "Pass the device to this player. Only they should view the decrypted transmission.",
-            style: TextStyle(color: Colors.white38, fontSize: 13, height: 1.4),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
-
-          if (!_isRoleRevealed)
-            ElevatedButton(
-              onPressed: () {
-                HapticFeedback.heavyImpact();
-                setState(() => _isRoleRevealed = true);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3B82F6),
-                minimumSize: const Size(double.infinity, 70),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  Widget _categoryCard(String category) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        _setupGame(category);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _surface.withOpacity(0.82),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: _accent.withOpacity(0.35), width: 1.4),
+          boxShadow: [BoxShadow(color: _accent.withOpacity(0.08), blurRadius: 28, offset: const Offset(0, 12))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [_accent.withOpacity(0.9), _accentTwo.withOpacity(0.65)]),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text("DECRYPT MY ROLE", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            )
-          else ...[
-            // Revealed card details
-            ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: Container(
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0E1329),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                    color: isChameleon ? Colors.redAccent : Colors.blueAccent,
-                    width: 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isChameleon ? Colors.redAccent : Colors.blueAccent).withOpacity(0.2),
-                      blurRadius: 30,
-                    )
-                  ],
+              child: Text(
+                category.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                  fontSize: 12,
                 ),
-                child: Column(
-                  children: [
-                    if (isChameleon) ...[
-                      const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 50),
-                      const SizedBox(height: 20),
-                      const Text(
-                        "YOU ARE THE CHAMELEON",
-                        style: TextStyle(color: Colors.redAccent, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 1),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        "You do not know the secret word. Keep your eyes on other players, listen to their clues, and blend in perfectly to escape detection!",
-                        style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
-                        textAlign: TextAlign.center,
-                      ),
-                    ] else ...[
-                      const Icon(Icons.lock_open_rounded, color: Colors.blueAccent, size: 50),
-                      const SizedBox(height: 20),
-                      const Text(
-                        "ROLE: DETECTIVE",
-                        style: TextStyle(color: Colors.blueAccent, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        "Secret Word is:\n'$_secretWord'",
-                        style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        "Grid Coordinate: $coordStr",
-                        style: const TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 18),
-                      const Divider(color: Colors.white10),
-                      const SizedBox(height: 10),
-                      // Rolling dice visual
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildDie(_diceA),
-                          const SizedBox(width: 14),
-                          _buildDie(_diceB),
-                        ],
-                      ),
-                    ]
-                  ],
-                ),
+                textAlign: TextAlign.center,
               ),
             ),
-            const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: () {
-                HapticFeedback.mediumImpact();
-                setState(() {
-                  _isRoleRevealed = false;
-                  if (_currentPlayerIndex < widget.players.length - 1) {
-                    _currentPlayerIndex++;
-                  } else {
-                    _gamePhase = 'discuss';
-                    _startTimer();
-                  }
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1F2947),
-                minimumSize: const Size(double.infinity, 64),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              ),
-              child: const Text("I AM READY", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+            Expanded(
+              child: _miniWordGrid(_categories[category]!),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'DRAW THIS CARD',
+              style: TextStyle(color: _accentTwo, fontWeight: FontWeight.w900, fontSize: 11),
+              textAlign: TextAlign.center,
             ),
           ],
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDie(int val) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: Colors.white10,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: Center(
-        child: Text(
-          "$val",
-          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
 
-  // --- PHASE 3: THE WORD GRID & CLUES DISCUSSION ---
+  Widget _buildRevealPhase() {
+    final currentPlayer = widget.players[_currentPlayerIndex];
+    final isChameleon = currentPlayer == _chameleonPlayer;
+    final coord = _decoderMatrix[_targetRow][_targetCol];
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionTitle('Pass The Device', 'Only $currentPlayer should look at this card.'),
+          const SizedBox(height: 18),
+          if (!_isRoleRevealed)
+            _tableCard(
+              child: Column(
+                children: [
+                  const Icon(Icons.style_rounded, color: _accentTwo, size: 70),
+                  const SizedBox(height: 16),
+                  Text(
+                    currentPlayer.toUpperCase(),
+                    style: const TextStyle(color: _ink, fontSize: 34, fontWeight: FontWeight.w900),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Tap when this player is holding the device.',
+                    style: TextStyle(color: Colors.white60),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  _paperButton('View My Card', () {
+                    HapticFeedback.heavyImpact();
+                    setState(() => _isRoleRevealed = true);
+                  }),
+                ],
+              ),
+            )
+          else
+            _roleCard(currentPlayer, isChameleon, coord),
+        ],
+      ),
+    );
+  }
+
+  Widget _roleCard(String currentPlayer, bool isChameleon, String coord) {
+    return _tableCard(
+      accent: isChameleon ? _danger : _accentTwo,
+      child: Column(
+        children: [
+          Text(
+            isChameleon ? 'YOU ARE THE CHAMELEON' : 'CODE CARD',
+            style: TextStyle(
+              color: isChameleon ? _danger : _accentTwo,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          if (isChameleon) ...[
+            const Icon(Icons.visibility_off_rounded, color: _danger, size: 76),
+            const SizedBox(height: 16),
+            const Text(
+              'You do not know the secret word. Listen carefully, give one clue, and blend in.',
+              style: TextStyle(color: Colors.white70, height: 1.45, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ] else ...[
+            _diceTray(),
+            const SizedBox(height: 14),
+            _decoderCard(coord),
+            const SizedBox(height: 16),
+            const Text('Secret Word', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+            Text(
+              _secretWord,
+              style: const TextStyle(color: _ink, fontSize: 34, fontWeight: FontWeight.w900),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          const SizedBox(height: 24),
+          _paperButton('Hide Card And Pass', () {
+            HapticFeedback.mediumImpact();
+            setState(() {
+              _isRoleRevealed = false;
+              if (_currentPlayerIndex < widget.players.length - 1) {
+                _currentPlayerIndex++;
+              } else {
+                _gamePhase = 'discuss';
+                _startTimer();
+              }
+            });
+          }),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDiscussPhase() {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _sectionTitle('One-Word Clues', 'Go around the table. Everyone says one clue.'),
+          const SizedBox(height: 14),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _selectedCategory!.toUpperCase(),
-                    style: const TextStyle(color: Colors.blueAccent, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold),
-                  ),
-                  const Text("PUBLIC DECRYPTION GRID", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              // Timer Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _timeLeft == 0 
-                      ? Colors.redAccent.withOpacity(0.15) 
-                      : Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: _timeLeft == 0 ? Colors.redAccent : Colors.white12,
-                  ),
-                ),
-                child: Text(
-                  _timeLeft == 0 
-                      ? "TIME'S UP" 
-                      : "${_timeLeft ~/ 60}:${(_timeLeft % 60).toString().padLeft(2, '0')}",
-                  style: TextStyle(
-                    color: _timeLeft == 0 ? Colors.redAccent : Colors.white, 
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              )
+              Expanded(child: _diceTray()),
+              const SizedBox(width: 12),
+              _timerBadge(),
             ],
           ),
-          const SizedBox(height: 16),
-          
-          // 4x4 public word matrix grid
-          _build4x4WordGrid(false, null),
-          
-          const SizedBox(height: 16),
-          const Text(
-            "Take turns physically stating exactly ONE word describing the secret item. The Chameleon must fake a clue to blend in!",
-            style: TextStyle(color: Colors.white38, fontSize: 12, height: 1.4),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-
-          // CONFESS BUTTON: The Chameleon can confessionally step up, reveal themselves, and guess to win!
-          ElevatedButton(
-            onPressed: () {
-              _timer?.cancel();
-              HapticFeedback.heavyImpact();
-              setState(() {
-                _isChameleonCaught = true;
-                _gamePhase = 'guess';
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              foregroundColor: Colors.black,
-              minimumSize: const Size(double.infinity, 54),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
-            child: const Text("I AM THE CHAMELEON (CONFESS & GUESS)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5)),
-          ),
-          const SizedBox(height: 12),
-
-          ElevatedButton(
-            onPressed: () {
-              _timer?.cancel();
-              HapticFeedback.mediumImpact();
-              setState(() => _gamePhase = 'vote');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3B82F6),
-              minimumSize: const Size(double.infinity, 60),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
-            child: const Text("PROCEED TO SUSPECT VOTE", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
+          _topicCard(interactive: false),
+          const SizedBox(height: 14),
+          _paperButton('Accuse The Chameleon', () {
+            _timer?.cancel();
+            HapticFeedback.mediumImpact();
+            setState(() => _gamePhase = 'vote');
+          }),
+          const SizedBox(height: 10),
+          _outlineButton('I Am The Chameleon - Reveal And Guess', () {
+            _timer?.cancel();
+            HapticFeedback.heavyImpact();
+            setState(() {
+              _isChameleonCaught = true;
+              _gamePhase = 'guess';
+            });
+          }),
         ],
       ),
     );
   }
 
-  Widget _build4x4WordGrid(bool interactive, Function(int, int)? onTap) {
-    final List<String> words = _categories[_selectedCategory!]!;
-    
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 1.0,
-      ),
-      itemCount: 16,
-      itemBuilder: (context, index) {
-        int r = index ~/ 4;
-        int c = index % 4;
-        
-        String colChar = ['A', 'B', 'C', 'D'][c];
-        String rowNumStr = "${r + 1}";
-        String coordStr = "$colChar$rowNumStr";
-        
-        String word = words[index];
-        bool isSelectedInGuess = _chameleonGuessWord == word;
-        
-        return Card(
-          color: isSelectedInGuess ? Colors.amber.withOpacity(0.3) : const Color(0xFF0E1329),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-            side: BorderSide(
-              color: isSelectedInGuess 
-                  ? Colors.amber 
-                  : const Color(0xFF1F2947),
-              width: 1.5,
-            ),
-          ),
-          margin: EdgeInsets.zero,
-          child: InkWell(
-            onTap: interactive ? () => onTap?.call(r, c) : null,
-            borderRadius: BorderRadius.circular(15),
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 6, left: 8,
-                  child: Text(
-                    coordStr,
-                    style: const TextStyle(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: Text(
-                      word,
-                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                )
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // --- PHASE 4: VOTE FOR THE CHAMELEON ---
   Widget _buildVotePhase() {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            "ACCUSE SUSPECT",
-            style: TextStyle(color: Colors.blueAccent, fontSize: 11, letterSpacing: 2, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
+          _sectionTitle('Vote Token', 'Choose who the group is accusing.'),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: widget.players.map((player) {
+              final selected = _votedPlayer == player;
+              return ChoiceChip(
+                selected: selected,
+                label: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: Text(player),
+                ),
+                selectedColor: _accent,
+                backgroundColor: _surfaceAlt,
+                labelStyle: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+                side: BorderSide(color: selected ? _accentTwo : Colors.white24, width: 1.5),
+                onSelected: (_) => setState(() => _votedPlayer = player),
+              );
+            }).toList(),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            "Discuss and vote together: Who is the Chameleon?",
-            style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
+          const SizedBox(height: 22),
+          _paperButton(
+            'Lock Accusation',
+            _votedPlayer == null
+                ? null
+                : () {
+                    HapticFeedback.heavyImpact();
+                    _isChameleonCaught = _votedPlayer == _chameleonPlayer;
+                    setState(() {
+                      if (_isChameleonCaught) {
+                        _gamePhase = 'guess';
+                      } else {
+                        _chameleonGuessedRight = false;
+                        _gamePhase = 'result';
+                      }
+                    });
+                  },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuessPhase() {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionTitle('Final Guess', 'The Chameleon can still win by naming the secret word.'),
+          const SizedBox(height: 14),
+          _topicCard(
+            interactive: true,
+            onTap: (word) => setState(() => _chameleonGuessWord = word),
+          ),
+          const SizedBox(height: 14),
+          _paperButton(
+            'Submit Final Guess',
+            _chameleonGuessWord == null
+                ? null
+                : () {
+                    HapticFeedback.heavyImpact();
+                    _chameleonGuessedRight = _chameleonGuessWord == _secretWord;
+                    setState(() => _gamePhase = 'result');
+                  },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResultPhase() {
+    final chameleonWins = !_isChameleonCaught || _chameleonGuessedRight;
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _tableCard(
+            accent: chameleonWins ? _danger : _accentTwo,
+            child: Column(
+              children: [
+                Icon(
+                  chameleonWins ? Icons.visibility_off_rounded : Icons.task_alt_rounded,
+                  color: chameleonWins ? _danger : _accentTwo,
+                  size: 76,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  chameleonWins ? 'Chameleon Wins' : 'Players Win',
+                  style: TextStyle(
+                    color: chameleonWins ? _danger : _accentTwo,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w900,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                _resultLine('Chameleon', _chameleonPlayer),
+                _resultLine('Secret Word', _secretWord),
+                if (_chameleonGuessWord != null)
+                  _resultLine('Final Guess', _chameleonGuessWord!),
+                const SizedBox(height: 12),
+                Text(
+                  chameleonWins
+                      ? (_isChameleonCaught
+                          ? 'They were caught, but guessed the word correctly.'
+                          : 'The group accused the wrong player.')
+                      : 'The group found the Chameleon and protected the secret word.',
+                  style: TextStyle(color: Colors.white70, height: 1.4),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
-          
-          ListView.builder(
+          _paperButton('Play Again', () {
+            HapticFeedback.mediumImpact();
+            setState(() {
+              _gamePhase = 'setup';
+              _selectedCategory = null;
+            });
+          }),
+          const SizedBox(height: 10),
+          _outlineButton('Return Home', () => AppNavigation.goHome(context)),
+        ],
+      ),
+    );
+  }
+
+  Widget _topicCard({required bool interactive, ValueChanged<String>? onTap}) {
+    final words = _categories[_selectedCategory!]!;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _surface.withOpacity(0.88),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _accent.withOpacity(0.38), width: 1.5),
+        boxShadow: [
+          BoxShadow(color: _accent.withOpacity(0.12), blurRadius: 30, offset: const Offset(0, 12)),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [_accent.withOpacity(0.9), _accentTwo.withOpacity(0.65)]),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              _selectedCategory!.toUpperCase(),
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 2),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 12),
+          GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: widget.players.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.18,
+            ),
+            itemCount: 16,
             itemBuilder: (context, index) {
-              String p = widget.players[index];
-              bool isSelected = _votedPlayer == p;
-              
-              return Card(
-                color: isSelected ? const Color(0xFF3B82F6).withOpacity(0.2) : const Color(0xFF0E1329),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(
-                    color: isSelected ? Colors.blueAccent : const Color(0xFF1F2947),
-                    width: 1.5,
+              final row = index ~/ 4;
+              final col = index % 4;
+              final coord = '${['A', 'B', 'C', 'D'][col]}${row + 1}';
+              final word = words[index];
+              final selected = _chameleonGuessWord == word;
+
+              return InkWell(
+                borderRadius: BorderRadius.circular(9),
+                onTap: interactive ? () => onTap?.call(word) : null,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: selected ? _accent.withOpacity(0.22) : _surfaceAlt.withOpacity(0.86),
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: selected ? _accentTwo : Colors.white.withOpacity(0.1), width: 1.4),
                   ),
-                ),
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                child: ListTile(
-                  title: Text(p, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  trailing: isSelected ? const Icon(Icons.how_to_vote, color: Colors.blueAccent) : null,
-                  onTap: () => setState(() => _votedPlayer = p),
+                  child: Stack(
+                    children: [
+                      Text(
+                        coord,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.28),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Center(
+                        child: Text(
+                          word,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
           ),
-          
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _votedPlayer == null ? null : () {
-              HapticFeedback.heavyImpact();
-              // Check if Chameleon was successfully identified
-              _isChameleonCaught = _votedPlayer == _chameleonPlayer;
-              
-              setState(() {
-                if (_isChameleonCaught) {
-                  // Chameleon gets a chance to guess!
-                  _gamePhase = 'guess';
-                } else {
-                  // Chameleon escaped and wins!
-                  _chameleonGuessedRight = false;
-                  _gamePhase = 'result';
-                }
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3B82F6),
-              minimumSize: const Size(double.infinity, 60),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
-            child: const Text("CONFIRM ELIMINATION VOTE", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          ),
-          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  // --- PHASE 5: CHAMELEON GUESS CLIMAX ---
-  Widget _buildChameleonGuessPhase() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
+  Widget _decoderCard(String targetCoord) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: _surfaceAlt.withOpacity(0.82),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _accent.withOpacity(0.28), width: 1.4),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 10),
-          const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 60),
-          const SizedBox(height: 10),
           const Text(
-            "CHAMELEON'S RETALIATION",
-            style: TextStyle(color: Colors.amber, fontSize: 11, letterSpacing: 2, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
+            'CODE GRID',
+            style: TextStyle(color: _accentTwo, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1),
           ),
-          const SizedBox(height: 6),
-          Text(
-            "Operatives identified $_chameleonPlayer!\nHowever, the Chameleon can still WIN by guessing the secret word from the grid.",
-            style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          
-          _build4x4WordGrid(true, (r, c) {
-            final List<String> words = _categories[_selectedCategory!]!;
-            setState(() {
-              _chameleonGuessWord = words[r * 4 + c];
-            });
-          }),
-          
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _chameleonGuessWord == null ? null : () {
-              HapticFeedback.heavyImpact();
-              _chameleonGuessedRight = _chameleonGuessWord == _secretWord;
-              setState(() => _gamePhase = 'result');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              foregroundColor: Colors.black,
-              minimumSize: const Size(double.infinity, 60),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          const SizedBox(height: 8),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+              childAspectRatio: 1.35,
             ),
-            child: const Text("SUBMIT FINAL GUESS", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            itemCount: 16,
+            itemBuilder: (context, index) {
+              final row = index ~/ 4;
+              final col = index % 4;
+              final coord = _decoderMatrix[row][col];
+              final selected = coord == targetCoord;
+              return Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? _accent.withOpacity(0.4) : _surface,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: selected ? _accentTwo : Colors.white.withOpacity(0.1)),
+                ),
+                child: Text(
+                  coord,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+                ),
+              );
+            },
           ),
-          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  // --- PHASE 6: FINAL GAME RESULTS ---
-  Widget _buildResultPhase() {
-    bool chameleonWins = !_isChameleonCaught || _chameleonGuessedRight;
-    
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
+  Widget _diceTray() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _accent.withOpacity(0.24)),
+      ),
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 10),
-          Icon(
-            chameleonWins ? Icons.warning_amber_rounded : Icons.task_alt_rounded,
-            size: 90,
-            color: chameleonWins ? Colors.amber : const Color(0xFF00FF88),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            chameleonWins ? "Chameleon Wins!" : "Operatives Win!",
-            style: TextStyle(
-              color: chameleonWins ? Colors.amber : const Color(0xFF00FF88),
-              fontSize: 36,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            chameleonWins 
-                ? (_isChameleonCaught 
-                    ? "Chameleon was caught, but correctly guessed the secret word!" 
-                    : "Chameleon completely escaped and fooled the operatives!")
-                : "Operatives caught the Chameleon, and the Chameleon failed to guess the secret word!",
-            style: const TextStyle(color: Colors.white60, fontSize: 14, height: 1.5),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
-          
-          ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0E1329),
-                border: Border.all(color: const Color(0xFF1F2947)),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Column(
-                children: [
-                  const Text("Chameleon Identity:", style: TextStyle(color: Color(0xFF8E95A3))),
-                  Text(_chameleonPlayer, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 18),
-                  const Divider(color: Colors.white10),
-                  const SizedBox(height: 10),
-                  const Text("Secret Word:", style: TextStyle(color: Color(0xFF8E95A3))),
-                  Text(_secretWord, style: const TextStyle(color: Colors.blueAccent, fontSize: 26, fontWeight: FontWeight.w900)),
-                  if (_chameleonGuessWord != null) ...[
-                    const SizedBox(height: 18),
-                    const Text("Chameleon Guess:", style: TextStyle(color: Color(0xFF8E95A3))),
-                    Text(
-                      _chameleonGuessWord!,
-                      style: TextStyle(
-                        color: _chameleonGuessedRight ? const Color(0xFF00FF88) : Colors.redAccent,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold
-                      ),
-                    ),
-                  ]
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 40),
-          ElevatedButton(
-            onPressed: () {
-              HapticFeedback.mediumImpact();
-              setState(() {
-                _gamePhase = 'setup';
-                _selectedCategory = null;
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3B82F6),
-              minimumSize: const Size(double.infinity, 60),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
-            child: const Text("PLAY AGAIN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => Navigator.popUntil(context, ModalRoute.withName('/home')),
-            child: const Text("Return to Home", style: TextStyle(color: Color(0xFF8E95A3))),
-          ),
-          const SizedBox(height: 20),
+          _die(_diceA, _accentTwo),
+          const SizedBox(width: 12),
+          _die(_diceB, _accent),
         ],
+      ),
+    );
+  }
+
+  Widget _die(int value, Color color) {
+    return Container(
+      width: 48,
+      height: 48,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _surfaceAlt,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color, width: 4),
+        boxShadow: [BoxShadow(color: color.withOpacity(0.18), blurRadius: 18, offset: const Offset(0, 5))],
+      ),
+      child: Text(
+        '$value',
+        style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+      ),
+    );
+  }
+
+  Widget _timerBadge() {
+    final text = _timeLeft == 0
+        ? 'TIME'
+        : '${_timeLeft ~/ 60}:${(_timeLeft % 60).toString().padLeft(2, '0')}';
+    return Container(
+      width: 92,
+      padding: const EdgeInsets.symmetric(vertical: 15),
+      decoration: BoxDecoration(
+        color: _timeLeft == 0 ? _danger.withOpacity(0.18) : _surfaceAlt.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _timeLeft == 0 ? _danger : _accent.withOpacity(0.35), width: 1.5),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: _timeLeft == 0 ? _danger : Colors.white,
+          fontWeight: FontWeight.w900,
+          fontSize: 18,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget _miniWordGrid(List<String> words) {
+    return GridView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        mainAxisSpacing: 3,
+        crossAxisSpacing: 3,
+        childAspectRatio: 1,
+      ),
+      itemCount: 16,
+      itemBuilder: (context, index) => Container(
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: _surfaceAlt.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          words[index],
+          style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+
+  Widget _tableCard({required Widget child, Color accent = _gold}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: _surface.withOpacity(0.68),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withOpacity(0.45), width: 1.5),
+        boxShadow: [
+          BoxShadow(color: accent.withOpacity(0.12), blurRadius: 28, offset: const Offset(0, 14)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title.toUpperCase(),
+          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          subtitle,
+          style: TextStyle(color: Colors.white.withOpacity(0.7), height: 1.35),
+        ),
+      ],
+    );
+  }
+
+  Widget _paperButton(String label, VoidCallback? onTap) {
+    return ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _accent,
+        disabledBackgroundColor: Colors.black26,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(double.infinity, 56),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 8,
+        shadowColor: _accent.withOpacity(0.4),
+      ),
+      child: Text(label.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900)),
+    );
+  }
+
+  Widget _outlineButton(String label, VoidCallback onTap) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.white,
+        minimumSize: const Size(double.infinity, 54),
+        side: BorderSide(color: Colors.white.withOpacity(0.45), width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: Text(label.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900)),
+    );
+  }
+
+  Widget _resultLine(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label, style: const TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900),
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _glowOrb(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+        boxShadow: [BoxShadow(color: color, blurRadius: 140, spreadRadius: 42)],
       ),
     );
   }

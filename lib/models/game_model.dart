@@ -140,7 +140,7 @@ final List<Game> games = [
     name: "The Glitch",
     description: "The logic stream is corrupted. Fix the system.",
     instructions: "Operatives are given a secret 'Logic Rule' to follow. One 'Glitch' is operating on corrupted data and doesn't know the rule. Identify who is breaking the logic pattern before the system crashes.",
-    imageAsset: 'assets/glitch_banner.jpg',
+    imageAsset: 'assets/the_glitch_banner.jpg',
     isOnline: false,
     selectionLobbyRouteName: '/setup/pass_and_play',
     actualGameRouteName: '/play/glitch',

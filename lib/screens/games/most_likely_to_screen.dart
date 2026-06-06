@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../services/firebase_service.dart';
 import '../../models/game_model.dart';
+import '../../core/navigation.dart';
 
 class MostLikelyToScreen extends StatefulWidget {
   final String roomCode;
@@ -305,7 +306,7 @@ class _MostLikelyToScreenState extends State<MostLikelyToScreen> {
             ),
           ),
         ),
-        _buildActionBtn("TERMINATE SESSION", () => Navigator.popUntil(context, ModalRoute.withName('/home'))),
+        _buildActionBtn("TERMINATE SESSION", () => AppNavigation.goHome(context)),
       ],
     );
   }

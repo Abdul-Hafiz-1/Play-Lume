@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../services/firebase_service.dart';
 import '../../models/game_model.dart';
+import '../../core/navigation.dart';
 
 class DontGetMeStartedGameScreen extends StatefulWidget {
   final String roomCode;
@@ -408,7 +409,7 @@ class _DontGetMeStartedGameScreenState extends State<DontGetMeStartedGameScreen>
        const Text("BROADCAST OVER", style: TextStyle(color: Colors.white24)),
        Text(players.first['nickname'].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
        const SizedBox(height: 40),
-       _buildActionBtn("EXIT", () => Navigator.popUntil(context, ModalRoute.withName('/home'))),
+       _buildActionBtn("EXIT", () => AppNavigation.goHome(context)),
      ]);
   }
 }

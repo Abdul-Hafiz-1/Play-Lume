@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/navigation.dart';
 import 'dart:math';
 import 'dart:async';
 
@@ -282,7 +283,7 @@ class _SpyScreenState extends State<SpyScreen> {
         ),
         const SizedBox(height: 60),
         ElevatedButton(
-          onPressed: () => Navigator.pop(context), 
+          onPressed: () => AppNavigation.goHome(context), 
           style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 70), backgroundColor: const Color(0xFF1F2947)),
           child: const Text("RETURN TO HQ")
         ),

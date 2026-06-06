@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/navigation.dart';
 import 'dart:math';
 import 'dart:async';
 
@@ -675,7 +676,7 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
                 const Spacer(),
                 
                 ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => AppNavigation.goHome(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: detectiveWin ? const Color(0xFF1F2947) : Colors.transparent,
                     side: BorderSide(color: detectiveWin ? Colors.transparent : Colors.white24),

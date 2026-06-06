@@ -28,19 +28,21 @@ class PlayLumeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Play Lume',
-      theme: AppTheme.darkTheme,
-      navigatorKey: navigatorKey,
-      scaffoldMessengerKey: snackbarKey,
-      debugShowCheckedModeBanner: false,
-      initialRoute: '/', 
-      
-      routes: {
-        '/': (context) => const NicknameScreen(),
-      },
+    return ValueListenableBuilder<AppThemePreset>(
+      valueListenable: ThemeController.preset,
+      builder: (context, preset, _) => MaterialApp(
+        title: 'Play Lume',
+        theme: AppTheme.themeFor(preset),
+        navigatorKey: navigatorKey,
+        scaffoldMessengerKey: snackbarKey,
+        debugShowCheckedModeBanner: false,
+        initialRoute: '/', 
+        
+        routes: {
+          '/': (context) => const NicknameScreen(),
+        },
 
-      onGenerateRoute: (settings) {
+        onGenerateRoute: (settings) {
         // 1. Dynamic Home Route
         if (settings.name == '/home') {
           final nickname = settings.arguments as String? ?? "Guest";
@@ -111,8 +113,9 @@ class PlayLumeApp extends StatelessWidget {
         }
 
         // 6. Universal Game Router
-        if (settings.name!.startsWith('/play/')) {
-          final gameKey = settings.name!.replaceFirst('/play/', '');
+        final routeName = settings.name ?? '';
+        if (routeName.startsWith('/play/')) {
+          final gameKey = routeName.replaceFirst('/play/', '');
           // Using a safe cast here
           final args = settings.arguments is Map<String, dynamic> 
               ? settings.arguments as Map<String, dynamic> 
@@ -125,7 +128,8 @@ class PlayLumeApp extends StatelessWidget {
         }
 
         return null;
-      },
+        },
+      ),
     );
   }
 }

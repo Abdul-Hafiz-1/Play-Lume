@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../logic/mafia_engine.dart';
 import '../../core/theme.dart';
+import '../../core/navigation.dart';
 
 class MafiaResultScreen extends StatelessWidget {
   final String winner; // "MAFIA", "TOWN", or "JESTER"
@@ -199,7 +200,7 @@ class MafiaResultScreen extends StatelessWidget {
 
   Widget _buildReturnButton(BuildContext context, Color themeColor) {
     return GestureDetector(
-      onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
+      onTap: () => AppNavigation.goHome(context),
       child: Container(
         width: 280,
         height: 60,

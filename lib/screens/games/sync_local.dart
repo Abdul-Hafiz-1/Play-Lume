@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../core/navigation.dart';
 import 'package:flutter/services.dart';
 import '../../services/firebase_service.dart';
 
@@ -399,7 +400,7 @@ class _LocalSyncGameScreenState extends State<LocalSyncGameScreen> with TickerPr
           ),
         )).toList(),
         const SizedBox(height: 40),
-        _buildTacticalButton("TERMINATE LINK", () => Navigator.pop(context)),
+        _buildTacticalButton("TERMINATE LINK", () => AppNavigation.goHome(context)),
       ],
     );
   }

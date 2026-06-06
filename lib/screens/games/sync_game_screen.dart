@@ -5,6 +5,7 @@ import 'dart:ui'; // Required for ImageFilter
 
 import '../../services/firebase_service.dart';
 import '../../models/game_model.dart';
+import '../../core/navigation.dart';
 
 class SyncGameScreen extends StatefulWidget {
   final String roomCode;
@@ -410,7 +411,7 @@ class _SyncGameScreenState extends State<SyncGameScreen> {
         Text(winner['nickname'].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w900, letterSpacing: 2)),
         const Text("HIGHEST COHERENCE RATE", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 12)),
         const SizedBox(height: 60),
-        _buildNeonButton("DISCONNECT LINK", () => Navigator.popUntil(context, ModalRoute.withName('/home'))),
+        _buildNeonButton("DISCONNECT LINK", () => AppNavigation.goHome(context)),
       ],
     );
   }

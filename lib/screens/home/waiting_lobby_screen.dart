@@ -5,6 +5,7 @@ import 'dart:ui';
 import '../../services/firebase_service.dart' hide snackbarKey;
 import '../../main.dart';
 import '../../models/game_model.dart';
+import '../../core/navigation.dart';
 
 class WaitingLobbyScreen extends StatefulWidget {
   final String roomCode;
@@ -45,7 +46,7 @@ class _WaitingLobbyScreenState extends State<WaitingLobbyScreen> {
     _hasExited = true; // Lock navigation
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        AppNavigation.goHome(context);
         snackbarKey.currentState?.showSnackBar(
           const SnackBar(content: Text("You were removed from the room.")),
         );
@@ -68,7 +69,7 @@ class _WaitingLobbyScreenState extends State<WaitingLobbyScreen> {
         Navigator.pushNamedAndRemoveUntil(
           context,
           '/play/${widget.gameId}',
-          (route) => route.isFirst, // Simpler way to get back to home if needed
+          (route) => route.settings.name == '/home',
           arguments: {'roomCode': widget.roomCode, 'gameId': widget.gameId},
         );
       }

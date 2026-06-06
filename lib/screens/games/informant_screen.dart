@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/navigation.dart';
 import 'dart:math';
 import 'dart:async';
 
@@ -552,7 +553,7 @@ class _InformantScreenState extends State<InformantScreen> {
         ),
         const SizedBox(height: 12),
         TextButton(
-          onPressed: () => Navigator.popUntil(context, ModalRoute.withName('/home')),
+          onPressed: () => AppNavigation.goHome(context),
           child: const Text('Return to Home', style: TextStyle(color: Color(0xFF8E95A3))),
         )
       ],

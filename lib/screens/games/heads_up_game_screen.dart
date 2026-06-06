@@ -8,6 +8,7 @@ import 'package:vibration/vibration.dart';
 import 'package:wakelock_plus/wakelock_plus.dart'; // 
 import '../../models/heads_up_data.dart';
 import '../../core/theme.dart';
+import '../../core/navigation.dart';
 
 class HeadsUpGameScreen extends StatefulWidget {
   final List<String> players;
@@ -338,7 +339,7 @@ void _moveToNextStep() {
       children: [
         _buildHeader("FINAL RANKINGS"),
         Expanded(child: ListView.builder(itemCount: sorted.length, itemBuilder: (context, i) => ListTile(title: Text(sorted[i].key, style: const TextStyle(color: Colors.white)), trailing: Text("${sorted[i].value} PTS", style: const TextStyle(color: AppTheme.glowBlue))))),
-        _buildActionBtn("TERMINATE SESSION", () => Navigator.pop(context)),
+        _buildActionBtn("TERMINATE SESSION", () => AppNavigation.goHome(context)),
       ],
     );
   }
